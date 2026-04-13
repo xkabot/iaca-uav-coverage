@@ -1,4 +1,5 @@
 # This file is all the equations described in the paper
+# This file isnt actually used when running simulations but was used to get them down before being copied in.
 
 import numpy as np
 import math
