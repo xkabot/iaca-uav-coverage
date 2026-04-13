@@ -5,6 +5,10 @@ import numpy as np
 import math
 
 
+# Define a shared seed so changes can be compared
+SEED = 1738
+
+
 def delta_p_ij_k(i, j, i_k, j_k, lam):
     """
     Equation 1 in paper.
