@@ -4,7 +4,7 @@
 Travis - 04/12/26 (later in the night after v1)
 
 Ok so I made some changes to make my code more like the paper, while still being able to function somewhat correctly, but the 
-code still needs to be improved. 
+code still needs to be improved. At current setup, max time multiplier is 2.6x, for the tiny 30x30 area, with 87.34% coverage.
 
 Right now (and in v1 if i forgot to mention), instead of doing the full area (700m by 700m), I am testing in a ~30m by 30m area, 
 and the drones are only flying at a max speed of 1m/s. This is because the drones have a tendency to lose control and crash if they are 
