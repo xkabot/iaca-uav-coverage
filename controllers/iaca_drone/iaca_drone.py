@@ -13,33 +13,7 @@ shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
 import equations as eq
-
-
-FLYING_ATTITUDE = 2.0
-## Known working values
-# DELTA_V_MAX = 0.05
-# ALPHA_VELOCITY = 0.92
-# MAX_WORLD_SPEED = 1.0
-# BOUNDARY_STRENGTH = 0.5
-# BOUNDARY_MARGIN = 4.0
-
-
-## Unknown values im testing to try and improve drone speed / turning
-BOUNDARY_STRENGTH = .9
-BOUNDARY_MARGIN = 5.0
-
-DELTA_V_MAX = 0.08
-ALPHA_VELOCITY = 0.88
-MAX_WORLD_SPEED = 1.5
-
-
-D_MAX = math.sqrt(2.0)  # max diagonal distance between neighboring cells in grid units
-
-WORLD_X_MIN = -30.0
-WORLD_X_MAX = 30.0
-WORLD_Y_MIN = -30.0
-WORLD_Y_MAX = 35.0
-
+from drone_constants import *
 
 robot = Robot()
 timestep = int(robot.getBasicTimeStep())

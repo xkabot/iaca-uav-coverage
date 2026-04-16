@@ -2,6 +2,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
+from supervisor_constants import *
 
 def load_data(path):
     with open(path, "r", encoding="utf-8") as f:
@@ -9,8 +10,10 @@ def load_data(path):
 
 
 def plot_coverage(coverage_history):
+    x = [i * SUPERVISOR_STEP_SIZE for i in range(len(coverage_history))]
+
     plt.figure()
-    plt.plot(coverage_history)
+    plt.plot(x, coverage_history)
     plt.xlabel("Step")
     plt.ylabel("Coverage (%)")
     plt.title("Coverage Over Time")
