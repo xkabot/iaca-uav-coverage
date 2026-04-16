@@ -217,13 +217,13 @@ for drone_def in drone_defs:
         raise ValueError(f"Could not find node with DEF name {drone_def}")
     translation_fields[drone_def] = node.getField("translation")
 
-WORLD_X_MIN = -30.0
-WORLD_X_MAX = 30.0
-WORLD_Y_MIN = -30.0
-WORLD_Y_MAX = 35.0
+WORLD_X_MIN = -100.0
+WORLD_X_MAX = 100.0
+WORLD_Y_MIN = -100.0
+WORLD_Y_MAX = 100.0
 
-GRID_ROWS = 100
-GRID_COLS = 100
+GRID_ROWS = 200
+GRID_COLS = 200
 
 P_MAX = 220.0
 ALPHA_PHEROMONE = 0.99

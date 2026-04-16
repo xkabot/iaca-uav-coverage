@@ -1,7 +1,12 @@
 # This file is all the equations described in the paper
+# This file isnt actually used when running simulations but was used to get them down before being copied in.
 
 import numpy as np
 import math
+
+
+# Define a shared seed so changes can be compared
+SEED = 1738
 
 
 def delta_p_ij_k(i, j, i_k, j_k, lam):
@@ -27,12 +32,11 @@ def get_p_new(i, j, lam, p_max, drone_positions):
     :param drone_positions: the (ik, jk) coordinates of all drones
     :return: the total drone pheromone contribution for a given (i, j) pheromone cell
     """
-    num_drones = max(len(drone_positions), 1)
     total = 0
     for (drone_i, drone_j) in drone_positions:
         total += delta_p_ij_k(i, j, drone_i, drone_j, lam)
 
-    return p_max * (total / num_drones)
+    return p_max * total
 
 def get_updated_pheromone_cell(i, j, p_cur, p_max, alpha, lam, drone_positions):
     """
@@ -70,36 +74,53 @@ def normalize_priority(rank_Rij, N):
     """
     return rank_Rij / N
 
-def get_drone_attractive_force(r_k, Q_k, v_old, D_max):
+def get_drone_attractive_force(Q_k, theta_k, r_k, D_max):
     """
-    Equation 6 in paper. Force contribution from a single neighbor cell.
+    Equation 6 in paper.
+    Get the attractive force for a drone at cell (i, j) based on the normalized priority value for that cell.
+    Q_k is the normalized priority value for the cell that drone k is currently in. r_k vector from the drone to the center of cell k,
+    θ_k is the angle between r_k and the drone’s previous velocity vector v_old, and D_max is the maximum diagonal distance
+    between neighboring cells
+
+    :return: F_k, the attractive force for a drone at cell (i, j)
     """
-    r_norm = np.linalg.norm(r_k)
-    if r_norm == 0:
-        return np.zeros(2, dtype=float)
+    norm = np.linalg.norm(r_k) # || r_k ||
 
-    v_old_norm = np.linalg.norm(v_old)
-    if v_old_norm == 0:
-        theta_k = 0.0
-    else:
-        cos_theta = np.dot(r_k, v_old) / (r_norm * v_old_norm)
-        cos_theta = np.clip(cos_theta, -1.0, 1.0)
-        theta_k = math.acos(cos_theta)
+    term1 = 0.1 * math.cos(theta_k)
+    term2 = 0.1 * (norm / D_max)
+    weight = Q_k + term1 + term2
 
-    weight = Q_k + 0.1 * math.cos(theta_k) + 0.1 * (r_norm / D_max)
-    return weight * (r_k / r_norm)
+    return weight * (r_k / norm)
 
 
 def get_total_attracting_force(neighbors, drone_pos, v_old, D_max):
     """
-    Equation 7 in paper. Sum of all neighbor force contributions.
-    neighbors: list of ((world_x, world_y), Q_k)
+    Equation 7 in paper.
+    Get the total attracting force for a drone at cell by summing the individual contributions from all considered neighbors.
+    neighbors is the normalized priority value for the neighboring cells. v_old is drone’s previous velocity vector. D_max is maximum diagonal distance between neighboring cells. Not sure how to calc this one...
+    :return: F_a, the total attracting force for a drone
     """
     F_a = np.zeros(2, dtype=float)
+
+    v_old_norm = np.linalg.norm(v_old)
+
     for (cell_center, Q_k) in neighbors:
-        r_k = np.array(cell_center, dtype=float) - np.array(drone_pos, dtype=float)
-        F_k = get_drone_attractive_force(r_k, Q_k, v_old, D_max)
+        r_k = np.array(cell_center) - np.array(drone_pos)
+        r_norm = np.linalg.norm(r_k)
+
+        # angle between r_k and v_old
+        if v_old_norm == 0:
+            theta_k = 0.0
+        else:
+            cos_theta = np.dot(r_k, v_old) / (r_norm * v_old_norm)
+            cos_theta = np.clip(cos_theta, -1.0, 1.0)
+            theta_k = math.acos(cos_theta)
+
+        weight = Q_k + 0.1 * math.cos(theta_k) + 0.1 * (r_norm / D_max)
+        F_k = weight * (r_k / r_norm)
+
         F_a += F_k
+
     return F_a
 
 def get_velocity_adjustment(F_a, v_max):
