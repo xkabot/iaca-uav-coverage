@@ -10,6 +10,7 @@ shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
 import equations as eq
+from supervisor_constants import *
 
 
 def clamp(value, value_min, value_max):
@@ -217,32 +218,11 @@ for drone_def in drone_defs:
         raise ValueError(f"Could not find node with DEF name {drone_def}")
     translation_fields[drone_def] = node.getField("translation")
 
-WORLD_X_MIN = -100.0
-WORLD_X_MAX = 100.0
-WORLD_Y_MIN = -100.0
-WORLD_Y_MAX = 100.0
-
-GRID_ROWS = 200
-GRID_COLS = 200
-
-P_MAX = 220.0
-ALPHA_PHEROMONE = 0.99
-LAMBDA = 0.9
-EPSILON = 1e-30
-
-HEIGHT_DESIRED = 2.0
-
-STARTUP_HOVER_TIME = 3.0
-
-SENSOR_RADIUS_CELLS = 3
-MAX_STEPS = 15000
-SAVE_INTERVAL = 25
-
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 
 # Numpy RNG
-rng = np.random.default_rng(eq.SEED)
+rng = np.random.default_rng(SEED)
 
 paths = {drone_def: [] for drone_def in drone_defs}
 grid_paths = {drone_def: [] for drone_def in drone_defs}
@@ -252,14 +232,15 @@ priority_snapshots = []
 
 step_count = 0
 
-print("Force-based IACA supervisor with logging started")
-
+print("IACA supervisor started")
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
     step_count += 1
 
     drone_states = {}
     drone_grid_positions = []
+    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0:
+        continue
 
     for drone_def in drone_defs:
         pos = translation_fields[drone_def].getSFVec3f()
@@ -364,8 +345,8 @@ while robot.step(timestep) != -1:
     coverage = get_coverage_percent(observed_mask)
     coverage_history.append(coverage)
 
-    if step_count % 25 == 0:
-        print(f"Step {step_count} coverage={coverage:.2f}%")
+    if step_count % SAVE_INTERVAL == 0:
+        print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
 
     if step_count >= MAX_STEPS:
         output = {
@@ -404,5 +385,5 @@ while robot.step(timestep) != -1:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(output, f)
 
-        print(f"Saved run output to: {output_path}")
+        print(f"Saved run output to: {output_path}; took {current_time}")
         robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
