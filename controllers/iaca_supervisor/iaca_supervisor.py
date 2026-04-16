@@ -71,7 +71,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
 
     interior = noisy[1:-1, 1:-1]
     noise_bound = noise_fraction * p_max
-    noise = np.random.uniform(-noise_bound, noise_bound, size=interior.shape)
+    noise = rng.uniform(-noise_bound, noise_bound, size=interior.shape)
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -241,6 +241,8 @@ SAVE_INTERVAL = 25
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 
+# Numpy RNG
+rng = np.random.default_rng(eq.SEED)
 
 paths = {drone_def: [] for drone_def in drone_defs}
 grid_paths = {drone_def: [] for drone_def in drone_defs}
