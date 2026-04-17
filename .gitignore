@@ -206,5 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+.idea/*
 
 controllers/iaca_supervisor/iaca_run_output.json
