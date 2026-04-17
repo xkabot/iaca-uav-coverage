@@ -9,7 +9,7 @@ current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
-import equations as eq
+import controllers.shared.equations as eq
 
 
 def clamp(value, value_min, value_max):
