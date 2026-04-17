@@ -9,8 +9,7 @@ current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
-
-from ..shared import equations as eq
+import equations as eq
 
 
 def clamp(value, value_min, value_max):
@@ -72,7 +71,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
 
     interior = noisy[1:-1, 1:-1]
     noise_bound = noise_fraction * p_max
-    noise = rng.uniform(-noise_bound, noise_bound, size=interior.shape)
+    noise = np.random.uniform(-noise_bound, noise_bound, size=interior.shape)
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -83,37 +82,30 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
 def update_pheromone_map_local(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, update_radius, noise_fraction):
     rows, cols = p_map.shape
     new_map = p_map.copy()
+    cells_to_update = set()
 
     num_drones = max(len(drone_grid_positions), 1)
 
-    update_cells = np.zeros(p_map.shape)
     for drone_row, drone_col in drone_grid_positions:
         row_min = max(1, drone_row - update_radius)
         row_max = min(rows - 2, drone_row + update_radius)
         col_min = max(1, drone_col - update_radius)
         col_max = min(cols - 2, drone_col + update_radius)
 
-        update_cells[row_min:row_max + 1, col_min:col_max +  1] = 1
+        for row in range(row_min, row_max + 1):
+            for col in range(col_min, col_max + 1):
+                cells_to_update.add((row, col))
 
-    update_indices = np.argwhere(update_cells)  # Shape: (N, 2)
-    drone_positions = np.array(drone_grid_positions)  # Shape: (M, 2)
+    for row, col in cells_to_update:
+        total = 0.0
+        for drone_row, drone_col in drone_grid_positions:
+            total += lam ** max(abs(row - drone_row), abs(col - drone_col))
 
-    # Find the row and column distances between each pheromone cell and drone position
-    # Resulting shape: (N, 1, 2) - (1, M, 2) = (N, M, 2)
-    diff = np.abs(update_indices[:, np.newaxis, :] - drone_positions[np.newaxis, :, :])
+        # Average instead of raw sum to prevent immediate saturation
+        p_new = p_max * (total / num_drones)
 
-    # Calculate the higher values between the row and column distances
-    # Resulting shape: (N, M)
-    max_diff = np.max(diff, axis=2)
-
-    # Calculate the new unnormalized pheromone contributions
-    # Resulting shape: (N,)
-    total = np.sum(lam ** max_diff, axis=1)
-
-    # Calculate the new pheromone value for each cell to update in the new pheromone matrix
-    p_new = p_max * (total / num_drones)
-    values = alpha_pheromone * p_map[tuple(update_indices.T)] + (1.0 - alpha_pheromone) * p_new
-    new_map[tuple(update_indices.T)] = np.maximum(0.0, np.minimum(values, p_max))
+        value = alpha_pheromone * p_map[row, col] + (1.0 - alpha_pheromone) * p_new
+        new_map[row, col] = clamp(value, 0.0, p_max)
 
     new_map = add_pheromone_noise(
         new_map=new_map,
@@ -121,7 +113,8 @@ def update_pheromone_map_local(p_map, drone_grid_positions, p_max, alpha_pheromo
         noise_fraction=noise_fraction
     )
 
-    new_map[tuple(drone_positions.T)] = p_max
+    for drone_row, drone_col in drone_grid_positions:
+        new_map[drone_row, drone_col] = p_max
 
     # Ghost border stays saturated and should never be attractive
     new_map[0, :] = p_max
@@ -248,8 +241,6 @@ SAVE_INTERVAL = 25
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 
-# Numpy RNG
-rng = np.random.default_rng(eq.SEED)
 
 paths = {drone_def: [] for drone_def in drone_defs}
 grid_paths = {drone_def: [] for drone_def in drone_defs}
