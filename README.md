@@ -1,17 +1,44 @@
 # Current WEBOT setup
 
 *All tests so far have been done with 4 drones
-**For reference, each step is 32ms, so 15k steps is 8 minutes of flight.
 
-## v3
+**For reference, each step is 32ms, so 15k steps is 8 minutes of simulated flight.
+
+
+## v3.2
+Travis - 04/16/2026
+
+Ok so I was thinking about it and decided that a coverage radius of 30m is probably unrealistic, as to be able to see 30m in
+each direction the onboard cameras probably can't see anything in enough detail for it to be useful. Thus, I have shrunk the radius
+down to 10m, which I think is more appropriate.
+
+I think the over-zealous pick of 30m coverage radius in v3.1 was why we were able to get 99% coverage, especially with seemingly 
+non-optimal flight paths. Here, we still get ~75%, which also might be an overstatement due to coverage radius still being too high,
+but I think much better overall. Results for same test but 10m radius is below.
+
+Also, remember that the paper did 100k timesteps, and I'm only doing 15k for sake of time, so any results I get would be a
+fraction of the full runs. I plan to do the 100k timesteps once I am running the full area/grid size.
+
+<img src="pics/v3/coverage2.png" alt="coverage graph" width="800"/>
+
+<img src="pics/v3/paths2.png" alt="drone paths" width="800"/>
+
+## v3.1
 Travis - 04/16/2026
 
 Including the changes that Caleb did for v2, I created seperate python files to hold constants to more easily test changes.
 
 Notice some missing things that the paper did that I didn't, that significantly increased performance (I forgot to add a supervisor step size).
 
+I also added a boundary deterrent, so that if a drone is headed towards the edge of the map, seen in `iaca_drone.py` as the `boundary_force(...)` function. 
+All this does is alter the direction of the drone slightly leaning it back towards the center of the area whenever it is near or outside the edge of the area. This 
+helps the drone to turn around faster, as changing direction is one of the drones struggles. 
+
 Before I go any further, note that v2 results are no longer comparable, as I changed the radius of what is considered "covered" when passed by a drone.
 So dont try to compare coverage between the two too hard.
+
+The paper did not give what their radius of coverage is, nor what sort of sensor was being used to decide coverage, so I
+assumed that using a video camera from a relatively average altitude you could capture a decent area around yourself.
 
 Now I am able to run on much larger areas in a reasonable amount of time. I did a 200m by 200m area with grid size of 200x200, 
 using 15,000 steps, and a sensor radius of 30m (i think thats reasonable?), and it was able to do a beautiful 99% coverage. 
@@ -25,9 +52,9 @@ Although I will say being able to coverage the 200m by 200m area in 8 minutes is
 Also to note, my max speedup is ~8x now. The biggest contributor is obviously the `SUPERVISOR_STEP_SIZE`, and the higher the better,
 but I think 15 is a good spot for it, and the paper has similar.
 
-<img src="pics/v3/coverage.png" alt="coverage graph" width="800"/>
+<img src="pics/v3/coverage1.png" alt="coverage graph" width="800"/>
 
-<img src="pics/v3/paths.png" alt="drone paths" width="800"/>
+<img src="pics/v3/paths1.png" alt="drone paths" width="800"/>
 
 ## v2
 Travis - 04/12/26 (later in the night after v1)
