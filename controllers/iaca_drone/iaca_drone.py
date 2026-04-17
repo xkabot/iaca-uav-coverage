@@ -12,7 +12,7 @@ current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
-import controllers.shared.equations as eq
+import equations as eq
 
 
 FLYING_ATTITUDE = 2.0
