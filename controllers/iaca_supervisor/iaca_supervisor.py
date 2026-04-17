@@ -278,7 +278,7 @@ while robot.step(timestep) != -1:
         p_max=P_MAX,
         alpha_pheromone=ALPHA_PHEROMONE,
         lam=LAMBDA,
-        update_radius=20,
+        update_radius=SENSOR_RADIUS_CELLS,
         noise_fraction=0.05
     )
 
