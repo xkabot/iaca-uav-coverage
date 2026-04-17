@@ -30,7 +30,7 @@ Also, I just realized that nowhere I can see in the paper do they discuss the ar
 which I feel is like... the **main** way to see performance of an *area coverage algorithm*... Anyways, back to my changes / improvements...
 
 I think the over-zealous pick of 30m coverage radius in v3.1 was why we were able to get 99% coverage, especially with seemingly 
-non-optimal flight paths. Here, we still get ~75%, which also might be an overstatement due to coverage radius still being too high,
+non-optimal flight paths. Here, we still get ~70%, which also might be an overstatement due to coverage radius still being too high,
 but I think much better overall. Results for same test but 10m radius is below.
 
 Also, remember that the paper did 100k timesteps, and I'm only doing 15k for sake of time, so any results I get would be a
