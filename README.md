@@ -40,12 +40,21 @@ fraction of the full runs. I plan to do the 100k timesteps once I am running the
 
 <img src="pics/v3/paths2.png" alt="drone paths" width="800"/>
 
-And just for shits and giggles here is 400m by 400m area, 300x300 grid size, 50k max steps (26:40min real time), still with 10m coverage radius
+And just for shits and giggles below is a 400m by 400m area, 300x300 grid size, 50k max steps (26:40min simulated time), still with 10m coverage radius
 and 4 drones. Max speedup was ~6.25x. Overall coverage at end was ~65% which honestly isn't terrible maybe? idk...
 
-<img src="pics/v3/paths3.png" alt="coverage graph" width="800"/>
+<img src="pics/v3/coverage3.png" alt="400x400 coverage graph" width="800"/>
 
-<img src="pics/v3/coverage3.png" alt="drone paths" width="800"/>
+<img src="pics/v3/paths3.png" alt="400x400 drone paths" width="800"/>
+
+Okay and here is the current algorithm running a 700m by 700m area, grid size 500x500, 100k steps (53 min simulated time), 
+took about 20 min to run, max speedup was ~3.5x. Final coverage was ~55%, and honestly the pathing looks wild, no visible 
+structure just drones going everywhere.
+
+<img src="pics/v3/coverage4.png" alt="700x700 coverage graph" width="800"/>
+
+<img src="pics/v3/paths4.png" alt="700x700 drone paths" width="800"/>
+
 
 ---
 
