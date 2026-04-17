@@ -12,6 +12,9 @@ Ok so I was thinking about it and decided that a coverage radius of 30m is proba
 each direction the onboard cameras probably can't see anything in enough detail for it to be useful. Thus, I have shrunk the radius
 down to 10m, which I think is more appropriate.
 
+Also, I just realized that nowhere I can see in the paper do they discuss the area coverage they got in their results (like percentage of total area covered),
+which I feel is like... the **main** way to see performance of an *area coverage algorithm*... Anyways, back to my changes / improvements...
+
 I think the over-zealous pick of 30m coverage radius in v3.1 was why we were able to get 99% coverage, especially with seemingly 
 non-optimal flight paths. Here, we still get ~75%, which also might be an overstatement due to coverage radius still being too high,
 but I think much better overall. Results for same test but 10m radius is below.
@@ -22,6 +25,14 @@ fraction of the full runs. I plan to do the 100k timesteps once I am running the
 <img src="pics/v3/coverage2.png" alt="coverage graph" width="800"/>
 
 <img src="pics/v3/paths2.png" alt="drone paths" width="800"/>
+
+And just for shits and giggles here is 400m by 400m area, 300x300 grid size, 50k max steps (26:40min real time), still with 10m coverage radius
+and 4 drones. Max speedup was ~6.25x. Overall coverage at end was ~65% which honestly isn't terrible maybe? idk...
+
+<img src="pics/v3/paths3.png" alt="coverage graph" width="800"/>
+
+<img src="pics/v3/coverage3.png" alt="drone paths" width="800"/>
+
 
 ## v3.1
 Travis - 04/16/2026
