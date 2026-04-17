@@ -1,4 +1,18 @@
-# Current WEBOT setup
+# IACA UAV Coverage Updates
+
+---
+
+## Table of Contents
+
+- [Current WEBOT setup](#current-webot-setup)
+- [v3.2 - Radius Adjustments & Large Scale Testing](#v32)
+- [v3.1 - Boundary Deterrents & Performance Optimization](#v31)
+- [v2 - Stability Constraints & Grid Scaling](#v2)
+- [v1 - Initial Implementation & Environment Setup](#v1)
+
+---
+
+## Current WEBOT setup
 
 *All tests so far have been done with 4 drones
 
@@ -33,6 +47,7 @@ and 4 drones. Max speedup was ~6.25x. Overall coverage at end was ~65% which hon
 
 <img src="pics/v3/coverage3.png" alt="drone paths" width="800"/>
 
+---
 
 ## v3.1
 Travis - 04/16/2026
@@ -66,6 +81,8 @@ but I think 15 is a good spot for it, and the paper has similar.
 <img src="pics/v3/coverage1.png" alt="coverage graph" width="800"/>
 
 <img src="pics/v3/paths1.png" alt="drone paths" width="800"/>
+
+---
 
 ## v2
 Travis - 04/12/26 (later in the night after v1)
