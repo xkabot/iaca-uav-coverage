@@ -1,15 +1,24 @@
-import json
 import numpy as np
 import matplotlib.pyplot as plt
 
 from supervisor_constants import *
 
+
 def load_data(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """
+    Load the compressed NumPy run output.
+    :param path: path to .npz file
+    :return: loaded npz object
+    """
+    return np.load(path)
 
 
 def plot_coverage(coverage_history):
+    """
+    Plot coverage percentage over time.
+    :param coverage_history: 1D array of coverage values
+    :return: None
+    """
     x = [i * SUPERVISOR_STEP_SIZE for i in range(len(coverage_history))]
 
     plt.figure()
@@ -22,15 +31,37 @@ def plot_coverage(coverage_history):
 
 
 def plot_paths(data):
-    paths = data["paths"]
-    bounds = data["world_bounds"]
+    """
+    Plot drone paths in world coordinates.
+    :param data: loaded npz object
+    :return: None
+    """
+    bounds = {
+        "x_min": float(data["world_x_min"]),
+        "x_max": float(data["world_x_max"]),
+        "y_min": float(data["world_y_min"]),
+        "y_max": float(data["world_y_max"]),
+    }
+
+    path_names = [
+        "drone0_path",
+        "drone1_path",
+        "drone2_path",
+        "drone3_path",
+    ]
 
     plt.figure()
 
-    for drone_name, path in paths.items():
-        xs = [p[0] for p in path]
-        ys = [p[1] for p in path]
-        plt.plot(xs, ys, label=drone_name)
+    for idx, key in enumerate(path_names):
+        path = data[key]
+
+        if len(path) == 0:
+            continue
+
+        xs = path[:, 0]
+        ys = path[:, 1]
+
+        plt.plot(xs, ys, label=f"DRONE{idx}")
 
     plt.xlim(bounds["x_min"], bounds["x_max"])
     plt.ylim(bounds["y_min"], bounds["y_max"])
@@ -44,34 +75,21 @@ def plot_paths(data):
     plt.show()
 
 
-def plot_heatmap(matrix, title):
-    plt.figure()
-    plt.imshow(matrix, origin="lower")
-    plt.colorbar()
-    plt.title(title)
-    plt.show()
-
-
-def plot_everything(json_path):
-    data = load_data(json_path)
+def plot_everything(npz_path):
+    """
+    Load and plot all saved data from the compressed run output.
+    :param npz_path: path to .npz file
+    :return: None
+    """
+    data = load_data(npz_path)
 
     coverage_history = data["coverage_history"]
-    pheromone_map = np.array(data["final_pheromone_map"])
-    priority_map = np.array(data["final_priority_map"])
-    observed_mask = np.array(data["observed_mask"])
 
     print(f"Final coverage: {coverage_history[-1]:.2f}%")
 
     plot_coverage(coverage_history)
-
     plot_paths(data)
-
-    plot_heatmap(pheromone_map, "Final Pheromone Map")
-
-    plot_heatmap(priority_map, "Final Priority Map")
-
-    plot_heatmap(observed_mask, "Observed Coverage Mask")
 
 
 if __name__ == "__main__":
-    plot_everything("iaca_run_output.json")
+    plot_everything("iaca_run_output.npz")

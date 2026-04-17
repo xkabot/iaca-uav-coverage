@@ -28,6 +28,7 @@ STARTUP_HOVER_TIME = 3.0
 SENSOR_RADIUS_CELLS = sc.SENSOR_RADIUS_CELLS
 MAX_STEPS = sc.MAX_STEPS
 SAVE_INTERVAL = 25
+PRINT_INTERVAL = 250
 
 # Controls how often the supervisor runs its code to update pheromone n stuff. Paper used 15 (maybe 16; they said 500 / 32, which is NOT an even quotient)
 SUPERVISOR_STEP_SIZE = 15
