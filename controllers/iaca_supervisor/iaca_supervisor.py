@@ -10,6 +10,7 @@ shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
 import equations as eq
+from supervisor_constants import *
 
 
 def clamp(value, value_min, value_max):
@@ -223,47 +224,26 @@ for drone_def in drone_defs:
         raise ValueError(f"Could not find node with DEF name {drone_def}")
     translation_fields[drone_def] = node.getField("translation")
 
-WORLD_X_MIN = -30.0
-WORLD_X_MAX = 30.0
-WORLD_Y_MIN = -30.0
-WORLD_Y_MAX = 35.0
-
-GRID_ROWS = 100
-GRID_COLS = 100
-
-P_MAX = 220.0
-ALPHA_PHEROMONE = 0.99
-LAMBDA = 0.9
-EPSILON = 1e-30
-
-HEIGHT_DESIRED = 2.0
-
-STARTUP_HOVER_TIME = 3.0
-
-SENSOR_RADIUS_CELLS = 3
-MAX_STEPS = 15000
-SAVE_INTERVAL = 25
-
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 
+# Numpy RNG
+rng = np.random.default_rng(SEED)
 
 paths = {drone_def: [] for drone_def in drone_defs}
-grid_paths = {drone_def: [] for drone_def in drone_defs}
 coverage_history = []
-pheromone_snapshots = []
-priority_snapshots = []
 
 step_count = 0
 
-print("Force-based IACA supervisor with logging started")
-
+print("IACA supervisor started")
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
     step_count += 1
 
     drone_states = {}
     drone_grid_positions = []
+    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0:
+        continue
 
     for drone_def in drone_defs:
         pos = translation_fields[drone_def].getSFVec3f()
@@ -292,7 +272,7 @@ while robot.step(timestep) != -1:
 
         drone_grid_positions.append((grid_row, grid_col))
         paths[drone_def].append((x, y))
-        grid_paths[drone_def].append((grid_row, grid_col))
+
         mark_observed_cells(observed_mask, grid_row, grid_col, SENSOR_RADIUS_CELLS)
 
     pheromone_map = update_pheromone_map_local(
@@ -301,7 +281,7 @@ while robot.step(timestep) != -1:
         p_max=P_MAX,
         alpha_pheromone=ALPHA_PHEROMONE,
         lam=LAMBDA,
-        update_radius=20,
+        update_radius=SENSOR_RADIUS_CELLS,
         noise_fraction=0.05
     )
 
@@ -310,10 +290,6 @@ while robot.step(timestep) != -1:
         drone_grid_positions=drone_grid_positions,
         epsilon=EPSILON
     )
-
-    if step_count % SAVE_INTERVAL == 0:
-        pheromone_snapshots.append(pheromone_map.copy().tolist())
-        priority_snapshots.append(priority_map.copy().tolist())
 
     for drone_def in drone_defs:
         state = drone_states[drone_def]
@@ -368,45 +344,30 @@ while robot.step(timestep) != -1:
     coverage = get_coverage_percent(observed_mask)
     coverage_history.append(coverage)
 
-    if step_count % 25 == 0:
-        print(f"Step {step_count} coverage={coverage:.2f}%")
+    if step_count % PRINT_INTERVAL == 0:
+        print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
 
     if step_count >= MAX_STEPS:
-        output = {
-            "world_bounds": {
-                "x_min": WORLD_X_MIN,
-                "x_max": WORLD_X_MAX,
-                "y_min": WORLD_Y_MIN,
-                "y_max": WORLD_Y_MAX,
-            },
-            "grid": {
-                "rows": GRID_ROWS,
-                "cols": GRID_COLS,
-            },
-            "params": {
-                "p_max": P_MAX,
-                "alpha_pheromone": ALPHA_PHEROMONE,
-                "lambda": LAMBDA,
-                "epsilon": EPSILON,
-                "height_desired": HEIGHT_DESIRED,
-                "startup_hover_time": STARTUP_HOVER_TIME,
-                "sensor_radius_cells": SENSOR_RADIUS_CELLS,
-                "max_steps": MAX_STEPS,
-                "save_interval": SAVE_INTERVAL,
-            },
-            "coverage_history": coverage_history,
-            "paths": paths,
-            "grid_paths": grid_paths,
-            "final_pheromone_map": pheromone_map.tolist(),
-            "final_priority_map": priority_map.tolist(),
-            "observed_mask": observed_mask.astype(int).tolist(),
-            "pheromone_snapshots": pheromone_snapshots,
-            "priority_snapshots": priority_snapshots,
-        }
+        output_dir = os.path.dirname(__file__)
+        temp_path = os.path.join(output_dir, "iaca_run_output.tmp.npz")
+        output_path = os.path.join(output_dir, "iaca_run_output.npz")
 
-        output_path = os.path.join(os.path.dirname(__file__), "iaca_run_output.json")
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(output, f)
+        np.savez_compressed(
+            temp_path,
+            world_x_min=WORLD_X_MIN,
+            world_x_max=WORLD_X_MAX,
+            world_y_min=WORLD_Y_MIN,
+            world_y_max=WORLD_Y_MAX,
+            grid_rows=GRID_ROWS,
+            grid_cols=GRID_COLS,
+            coverage_history=np.array(coverage_history, dtype=np.float32),
+            drone0_path=np.array(paths["DRONE0"], dtype=np.float32),
+            drone1_path=np.array(paths["DRONE1"], dtype=np.float32),
+            drone2_path=np.array(paths["DRONE2"], dtype=np.float32),
+            drone3_path=np.array(paths["DRONE3"], dtype=np.float32),
+        )
+
+        os.replace(temp_path, output_path)
 
         print(f"Saved run output to: {output_path}")
         robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)

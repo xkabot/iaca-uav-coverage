@@ -209,5 +209,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+.idea/*
 
+# Both types of outputs the webots can produce after each run (older and newer outputs)
 controllers/iaca_supervisor/iaca_run_output.json
+controllers/iaca_supervisor/iaca_run_output.npz
