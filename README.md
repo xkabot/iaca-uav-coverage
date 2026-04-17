@@ -1,13 +1,42 @@
 # Current WEBOT setup
 
+*All tests so far have been done with 4 drones
+**For reference, each step is 32ms, so 15k steps is 8 minutes of flight.
+
+## v3
+Travis - 04/16/2026
+
+Including the changes that Caleb did for v2, I created seperate python files to hold constants to more easily test changes.
+
+Notice some missing things that the paper did that I didn't, that significantly increased performance (I forgot to add a supervisor step size).
+
+Before I go any further, note that v2 results are no longer comparable, as I changed the radius of what is considered "covered" when passed by a drone.
+So dont try to compare coverage between the two too hard.
+
+Now I am able to run on much larger areas in a reasonable amount of time. I did a 200m by 200m area with grid size of 200x200, 
+using 15,000 steps, and a sensor radius of 30m (i think thats reasonable?), and it was able to do a beautiful 99% coverage. 
+I redid it with another seed and it did nearly the same (96%). Not sure if this is just because 15k  steps is overkill for an area of this size, but 
+I've attached the graphs below. As you can see, while the paths aren't pretty, the drones do a wonderful job of staying 
+in the area, either curving to avoid going out of bounds, or clearly turning around just off map. I see this as about as good as you get for
+staying in the area, but the pathing might leave a little to be desired.
+
+Although I will say being able to coverage the 200m by 200m area in 8 minutes is pretty good I think.
+
+Also to note, my max speedup is ~8x now. The biggest contributor is obviously the `SUPERVISOR_STEP_SIZE`, and the higher the better,
+but I think 15 is a good spot for it, and the paper has similar.
+
+<img src="pics/v3/coverage.png" alt="coverage graph" width="800"/>
+
+<img src="pics/v3/paths.png" alt="drone paths" width="800"/>
+
 ## v2
 Travis - 04/12/26 (later in the night after v1)
 
 Ok so I made some changes to make my code more like the paper, while still being able to function somewhat correctly, but the 
-code still needs to be improved. At current setup, max time multiplier is 2.6x, for the tiny 30x30 area, with 87.34% coverage.
+code still needs to be improved. At current setup, max time multiplier is ~2.6x, for the tiny 30m by 30m area, 100x100 grid, sensor range of 20 cells (so like 6m), with 87.34% coverage.
 
 Right now (and in v1 if i forgot to mention), instead of doing the full area (700m by 700m), I am testing in a ~30m by 30m area, 
-and the drones are only flying at a max speed of 1m/s. This is because the drones have a tendency to lose control and crash if they are 
+and the drones are only flying at a max speed of 1m/s (edit: paper also has max speed of 1m/s). This is because the drones have a tendency to lose control and crash if they are 
 flying too fast or try to rapidly change directions due to pheromones, and I haven't been able to find a good way to fix that yet.
 
 For the size of the area, this is because if I do too large of an area while keeping the grid size the same (100x100) then each grid becomes 
@@ -33,9 +62,9 @@ get others like red which does a lap around the area then starts going randomly.
 
 Also, while the lines do go straight off, in the sim the drones do turn around very quickly after leaving the operating area.
 
-<img src="pics/coverage.png" alt="coverage graph" width="800"/>
+<img src="pics/v2/coverage.png" alt="coverage graph" width="800"/>
 
-<img src="pics/paths.png" alt="drone paths" width="800"/>
+<img src="pics/v2/paths.png" alt="drone paths" width="800"/>
 
 
 ## v1
@@ -49,6 +78,7 @@ But the actual code is a kind of pain in the ass because you need to watch out f
 to avoid having them lose control and flip / crash. The drones came with a python file to do PID control on them, but still isn't perfect.
 
 I tried to alter how my code works to follow the paper more accurately and the code actually performed worse, so for now this folder is the best i've done.
+
 
 The python scripts can be found in `controllers/` with `iaca_drone/iaca_drone.py` to control individual drones and `iaca_supervisor/iaca_supervisor.py` the main supervisor script. 
 
