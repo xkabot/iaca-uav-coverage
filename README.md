@@ -18,6 +18,21 @@
 
 **For reference, each step is 32ms, so 15k steps is 8 minutes of simulated flight.
 
+## To be done (that i can think of right now):
+- paper has random wind simulated, but we dont right now
+
+
+- We can totally do matrix operations / convolution for the pheromone / priority map updates prolly. which would speed up the code hella.
+
+
+- The way I'm logging the data isn't the same as the paper; they say they do "UAV positions are recorded at each time step, 
+and the pheromone and priority matrices are archived every 100 steps for offline analysis", i do location & matrices every like 20, so should probably match them.
+
+
+- Having some way to dynamically alter the number of drones (with a constant in the `shared_constant.py` file) and their starting location 
+(to fit the number of drones without being too close). Right now I am manually adding them in the webots file,
+and manually moving their starting positions, which is hella tedious. Paper says they do this: "supervisor instantiates a specified number of drones positioned symmetrically using a regular polygon inscribed in a circle".
+
 
 ## v3.2
 Travis - 04/16/2026
