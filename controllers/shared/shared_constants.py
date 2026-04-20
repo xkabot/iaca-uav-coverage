@@ -3,6 +3,9 @@
 # Define a shared seed so changes can be compared
 SEED = 1738
 
+TICK_RATE_MS = 32 # each webots simulation step is 32 ms
+TICK_RATE_SEC = TICK_RATE_MS / 1000  # seconds per simulation step
+
 MAX_STEPS = 15000
 HEIGHT_DESIRED = 2.0
 

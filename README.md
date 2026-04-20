@@ -19,7 +19,7 @@
 **For reference, each step is 32ms, so 15k steps is 8 minutes of simulated flight.
 
 ## To be done (that i can think of right now):
-- paper has random wind simulated, but we dont right now
+- ~~paper has random wind simulated, but we dont~~ - Done 
 
 
 - We can totally do matrix operations / convolution for the pheromone / priority map updates prolly. which would speed up the code hella.

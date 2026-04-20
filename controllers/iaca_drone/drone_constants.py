@@ -23,6 +23,10 @@ DELTA_V_MAX = 0.09
 ALPHA_VELOCITY = 0.9 # movement smoothing factor
 MAX_WORLD_SPEED = 1.5
 
+WIND_UPDATE_PERIOD = 20.0
+WIND_STD = 0.03
+WIND_MAX = 0.08
+
 FLYING_ATTITUDE = sc.HEIGHT_DESIRED
 
 D_MAX = math.sqrt(2.0)  # max diagonal distance between neighboring cells in grid units
