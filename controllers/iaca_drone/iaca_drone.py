@@ -15,6 +15,54 @@ sys.path.append(shared_path)
 import equations as eq
 from drone_constants import *
 
+
+def clamp_vector_norm(v, max_norm):
+    norm = np.linalg.norm(v)
+    if norm == 0.0 or norm <= max_norm:
+        return v
+    return (v / norm) * max_norm
+
+def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
+    """
+    Returns a force pushing drone back toward map center when near or outside bounds.
+    Force scales linearly from 0 at the margin boundary to full strength at the edge.
+    """
+    x, y = drone_pos
+    fx, fy = 0.0, 0.0
+
+    # X boundaries
+    if x < x_min + margin:
+        t = 1.0 - max(x - x_min, 0.0) / margin
+        fx += strength * t
+    elif x > x_max - margin:
+        t = 1.0 - max(x_max - x, 0.0) / margin
+        fx -= strength * t
+
+    # Y boundaries
+    if y < y_min + margin:
+        t = 1.0 - max(y - y_min, 0.0) / margin
+        fy += strength * t
+    elif y > y_max - margin:
+        t = 1.0 - max(y_max - y, 0.0) / margin
+        fy -= strength * t
+
+    return np.array([fx, fy], dtype=float)
+
+def sample_bounded_gaussian_wind(rng, std, max_mag):
+    """
+    Sample a 2D wind vector from a bounded Gaussian-like distribution.
+    :param rng: numpy random generator
+    :param std: standard deviation per component
+    :param max_mag: maximum wind magnitude
+    :return: numpy array [wind_x, wind_y]
+    """
+    wind = rng.normal(loc=0.0, scale=std, size=2)
+    return clamp_vector_norm(wind, max_mag)
+
+rng = np.random.default_rng(SEED)
+last_wind_update_time = 0
+wind_vector_world = sample_bounded_gaussian_wind(rng, WIND_STD, WIND_MAX)
+
 robot = Robot()
 timestep = int(robot.getBasicTimeStep())
 
@@ -79,40 +127,6 @@ startup = True
 
 print("Crazyflie iaca_drone started")
 
-
-def clamp_vector_norm(v, max_norm):
-    norm = np.linalg.norm(v)
-    if norm == 0.0 or norm <= max_norm:
-        return v
-    return (v / norm) * max_norm
-
-def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
-    """
-    Returns a force pushing drone back toward map center when near or outside bounds.
-    Force scales linearly from 0 at the margin boundary to full strength at the edge.
-    """
-    x, y = drone_pos
-    fx, fy = 0.0, 0.0
-
-    # X boundaries
-    if x < x_min + margin:
-        t = 1.0 - max(x - x_min, 0.0) / margin
-        fx += strength * t
-    elif x > x_max - margin:
-        t = 1.0 - max(x_max - x, 0.0) / margin
-        fx -= strength * t
-
-    # Y boundaries
-    if y < y_min + margin:
-        t = 1.0 - max(y - y_min, 0.0) / margin
-        fy += strength * t
-    elif y > y_max - margin:
-        t = 1.0 - max(y_max - y, 0.0) / margin
-        fy -= strength * t
-
-    return np.array([fx, fy], dtype=float)
-
-
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
 
@@ -122,6 +136,16 @@ while robot.step(timestep) != -1:
         past_time = current_time
         first_time = False
         continue
+
+    if current_time - last_wind_update_time >= WIND_UPDATE_PERIOD:
+        wind_vector_world = sample_bounded_gaussian_wind(
+            rng=rng,
+            std=WIND_STD,
+            max_mag=WIND_MAX
+        )
+        last_wind_update_time = current_time
+
+        print(f"New wind vector: ({wind_vector_world[0]:.3f}, {wind_vector_world[1]:.3f})")
 
     dt = current_time - past_time
     if dt <= 0.0:
@@ -206,7 +230,10 @@ while robot.step(timestep) != -1:
             )
             v_world = clamp_vector_norm(v_world, MAX_WORLD_SPEED)
 
-    v_body = eq.global_to_body_velocity(v_world, yaw)
+    v_effective_world = v_world + wind_vector_world
+    v_effective_world = clamp_vector_norm(v_effective_world, MAX_WORLD_SPEED)
+
+    v_body = eq.global_to_body_velocity(v_effective_world, yaw)
     forward_desired = v_body[0]
     sideways_desired = v_body[1]
 
