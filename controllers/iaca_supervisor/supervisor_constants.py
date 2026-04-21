@@ -32,3 +32,5 @@ PRINT_INTERVAL = 250
 
 # Controls how often the supervisor runs its code to update pheromone n stuff. Paper used 15 (maybe 16; they said 500 / 32, which is NOT an even quotient)
 SUPERVISOR_STEP_SIZE = 15
+
+NUMBER_OF_DRONES = 6

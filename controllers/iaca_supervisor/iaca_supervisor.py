@@ -195,28 +195,67 @@ def mark_observed_cells(observed_mask, center_row, center_col, radius):
 def get_coverage_percent(observed_mask):
     return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
 
+def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spawn_height=0.5):
+    root_node = supervisor_robot.getRoot()
+    children_field = root_node.getField("children")
+    drone_defs = []
+    drone_channels = {}
+    translation_fields = {}
 
+    for i in range(number_of_drones):
+        drone_def = f"DRONE{i}"
+        drone_channel = 10 + i
+        if number_of_drones == 1:
+            initial_x = 0.0
+            initial_y = 0.0
+        else:
+            angle = 2.0 * math.pi * i / number_of_drones
+            initial_x = spawn_radius * math.cos(angle)
+            initial_y = spawn_radius * math.sin(angle)
+
+        initial_z = spawn_height
+
+        drone_string = f"""
+        DEF {drone_def} IacaCrazyflie {{
+          translation {initial_x} {initial_y} {initial_z}
+          controller "iaca_drone"
+          receiverChannel {drone_channel}
+        }}
+        """
+
+        children_field.importMFNodeFromString(-1, drone_string)
+        node = supervisor_robot.getFromDef(drone_def)
+
+        if node is None:
+            raise ValueError(f"Failed to create {drone_def}")
+
+        translation_field = node.getField("translation")
+
+        if translation_field is None:
+            raise ValueError(f"Could not get translation field for {drone_def}")
+
+        position = translation_field.getSFVec3f()
+        print(
+            f"{drone_def}: starting position = "
+            f"{position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f}"
+        )
+
+        drone_defs.append(drone_def)
+        drone_channels[drone_def] = drone_channel
+        translation_fields[drone_def] = translation_field
+
+    return drone_defs, drone_channels, translation_fields
+
+# get supervisor instance
 robot = Supervisor()
+
+# add the drones to the webots area and set their initial positions
+drone_defs, drone_channels, translation_fields = initalize_drones(robot, NUMBER_OF_DRONES)
+
 timestep = int(robot.getBasicTimeStep())
 dt = timestep / 1000.0
 
 emitter = robot.getDevice("cmd_emitter")
-
-drone_defs = ["DRONE0", "DRONE1", "DRONE2", "DRONE3"]
-drone_channels = {
-    "DRONE0": 10,
-    "DRONE1": 11,
-    "DRONE2": 12,
-    "DRONE3": 13,
-}
-
-translation_fields = {}
-
-for drone_def in drone_defs:
-    node = robot.getFromDef(drone_def)
-    if node is None:
-        raise ValueError(f"Could not find node with DEF name {drone_def}")
-    translation_fields[drone_def] = node.getField("translation")
 
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
@@ -346,21 +385,20 @@ while robot.step(timestep) != -1:
         temp_path = os.path.join(output_dir, "iaca_run_output.tmp.npz")
         output_path = os.path.join(output_dir, "iaca_run_output.npz")
 
-        np.savez_compressed(
-            temp_path,
-            world_x_min=WORLD_X_MIN,
-            world_x_max=WORLD_X_MAX,
-            world_y_min=WORLD_Y_MIN,
-            world_y_max=WORLD_Y_MAX,
-            grid_rows=GRID_ROWS,
-            grid_cols=GRID_COLS,
-            coverage_history=np.array(coverage_history, dtype=np.float32),
-            drone0_path=np.array(paths["DRONE0"], dtype=np.float32),
-            drone1_path=np.array(paths["DRONE1"], dtype=np.float32),
-            drone2_path=np.array(paths["DRONE2"], dtype=np.float32),
-            drone3_path=np.array(paths["DRONE3"], dtype=np.float32),
-        )
+        save_data = {
+            "world_x_min": WORLD_X_MIN,
+            "world_x_max": WORLD_X_MAX,
+            "world_y_min": WORLD_Y_MIN,
+            "world_y_max": WORLD_Y_MAX,
+            "grid_rows": GRID_ROWS,
+            "grid_cols": GRID_COLS,
+            "coverage_history": np.array(coverage_history, dtype=np.float32),
+        }
 
+        for drone_def in drone_defs:
+            save_data[f"{drone_def.lower()}_path"] = np.array(paths[drone_def], dtype=np.float32)
+
+        np.savez_compressed(temp_path, **save_data)
         os.replace(temp_path, output_path)
 
         print(f"Saved run output to: {output_path}")
