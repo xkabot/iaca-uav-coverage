@@ -45,6 +45,7 @@ def plot_paths(data):
 
     plt.figure()
 
+    # plot main paths
     for i in range(NUMBER_OF_DRONES):
         key = f"drone{i}_path"
         path = data[key]
@@ -61,6 +62,34 @@ def plot_paths(data):
         end_x = xs[-1]
         end_y = ys[-1]
         plt.plot(end_x, end_y, 'rx', markersize=7, markeredgewidth=2)
+
+    # plot start points
+    for i in range(NUMBER_OF_DRONES):
+        key = f"drone{i}_path"
+        path = data[key]
+
+        xs = path[:, 0]
+        ys = path[:, 1]
+
+        start_x = xs[0]
+        start_y = ys[0]
+        # add a circle at the start of the path to show where the drone started
+        plt.plot(start_x, start_y, 'go', markersize=7, markeredgewidth=2)
+
+
+    # plot end points
+    for i in range(NUMBER_OF_DRONES):
+        key = f"drone{i}_path"
+        path = data[key]
+
+        xs = path[:, 0]
+        ys = path[:, 1]
+
+        end_x = xs[-1]
+        end_y = ys[-1]
+        # add an x to the end of the path to show where the drone ended up
+        plt.plot(end_x, end_y, 'rx', markersize=7, markeredgewidth=2)
+
 
     plt.xlim(bounds["x_min"], bounds["x_max"])
     plt.ylim(bounds["y_min"], bounds["y_max"])
