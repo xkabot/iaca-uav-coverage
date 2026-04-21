@@ -17,8 +17,8 @@ WorldInfo {
   lineScale 3
 }
 Viewpoint {
-  orientation 0.24014330203722908 -0.14070404612518195 -0.9604861091606994 4.166774370354285
-  position 13.317148559001417 15.649694503398138 1.9334640170305073
+  orientation 0.14415059010286269 0.06874587221121767 -0.9871649367896508 2.261590112071569
+  position 11.814511221002856 2.3496024310621055 1.370196878521455
   near 3
   followType "Mounted Shot"
 }
@@ -5963,26 +5963,6 @@ SimpleBuilding {
   ]
   wallType "stone brick"
 }
-SimpleBuilding {
-  translation 162.24 -98.82 0
-  name "building(29)"
-  floorNumber 4
-  corners [
-    0 0
-    -32.94 6.04
-    -36.75 -14.67
-    -3.82 -20.71
-    0 0
-    -22.9 -23.98
-    -10.04 -26.33
-    -12.9 -41.83
-    -25.76 -39.48
-    -22.9 -23.98
-    -23.44 -0.54
-  ]
-  wallType "glass highrise"
-  roofShape "flat roof"
-}
 DEF parking Pose {
   translation -144.670796 87.578711 0
   children [
@@ -6886,7 +6866,7 @@ Robot {
   children [
     Emitter {
       name "cmd_emitter"
-      channel 10
+      channel 15
     }
   ]
   name "IACA_SUPERVISOR"
