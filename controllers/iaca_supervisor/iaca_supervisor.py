@@ -72,7 +72,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
 
     interior = noisy[1:-1, 1:-1]
     noise_bound = noise_fraction * p_max
-    noise = np.random.uniform(-noise_bound, noise_bound, size=interior.shape)
+    noise = rng.uniform(-noise_bound, noise_bound, size=interior.shape)
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -98,22 +98,22 @@ def update_pheromone_map_local(p_map, drone_grid_positions, p_max, alpha_pheromo
     update_indices = np.argwhere(update_cells)  # Shape: (N, 2)
     drone_positions = np.array(drone_grid_positions)  # Shape: (M, 2)
 
-    # Find the row and column distances between each pheromone cell and drone position
-    # Resulting shape: (N, 1, 2) - (1, M, 2) = (N, M, 2)
-    diff = np.abs(update_indices[:, np.newaxis, :] - drone_positions[np.newaxis, :, :])
+    if len(update_indices) > 0 and len(drone_positions) > 0:
+        # Find the row and column distances between each pheromone cell and drone position
+        # Resulting shape: (N, 1, 2) - (1, M, 2) = (N, M, 2)
+        diff = np.abs(update_indices[:, np.newaxis, :] - drone_positions[np.newaxis, :, :])
 
-    # Calculate the higher values between the row and column distances
-    # Resulting shape: (N, M)
-    max_diff = np.max(diff, axis=2)
+        # Calculate the higher values between the row and column distances
+        # Resulting shape: (N, M)
+        max_diff = np.max(diff, axis=2)
 
-    # Calculate the new unnormalized pheromone contributions
-    # Resulting shape: (N,)
-    total = np.sum(lam ** max_diff, axis=1)
+        # Calculate the average pheromone contributions
+        total = np.sum(lam ** max_diff, axis=1) / num_drones
 
-    # Calculate the new pheromone value for each cell to update in the new pheromone matrix
-    p_new = p_max * (total / num_drones)
-    values = alpha_pheromone * p_map[tuple(update_indices.T)] + (1.0 - alpha_pheromone) * p_new
-    new_map[tuple(update_indices.T)] = np.maximum(0.0, np.minimum(values, p_max))
+        # Calculate the new pheromone value for each cell to update in the new pheromone matrix
+        p_new = p_max * total
+        values = alpha_pheromone * p_map[tuple(update_indices.T)] + (1.0 - alpha_pheromone) * p_new
+        new_map[tuple(update_indices.T)] = np.clip(values, 0.0, p_max)
 
     new_map = add_pheromone_noise(
         new_map=new_map,
@@ -137,9 +137,7 @@ def compute_priority_map(p_map, drone_grid_positions, epsilon):
     total_cells = rows * cols
 
     raw = np.zeros_like(p_map, dtype=float)
-    for row in range(rows):
-        for col in range(cols):
-            raw[row, col] = eq.get_raw_inverted_priority(p_map[row, col], epsilon)
+    raw[:, :] = eq.get_raw_inverted_priority(p_map, epsilon)
 
     flat = raw.flatten()
     order = np.argsort(flat)
@@ -344,8 +342,6 @@ while robot.step(timestep) != -1:
     coverage = get_coverage_percent(observed_mask)
     coverage_history.append(coverage)
 
-    if step_count % PRINT_INTERVAL == 0:
-        print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
 
     if step_count >= MAX_STEPS:
         output_dir = os.path.dirname(__file__)

@@ -1,9 +1,9 @@
 ## GLOBAL VARIABLES
 
 # Define a shared seed so changes can be compared
-SEED = 1738
+SEED = 2000
 
-MAX_STEPS = 15000
+MAX_STEPS = 20000
 HEIGHT_DESIRED = 2.0
 
 # in meters from center
