@@ -228,6 +228,20 @@ def altitude_thrust(e_z, integral_e_z, derivative_e_z, k_p_z=10.0, k_i_z=0.0, k_
     return k_p_z * e_z + k_i_z * integral_e_z + k_d_z * derivative_e_z + F_hover
 
 
+def apply_wind_disturbance(v, wind_sigma, rng):
+    """
+    Equation ??? in paper.
+    Apply a random wind disturbance to the velocity vector, simulating real-world conditions.
+    
+    Apply a wind disturbance to the velocity vector.
+    :param v: the velocity vector
+    :param wind_sigma: the standard deviation of the wind disturbance
+    :param rng: the random number generator to use for reproducibility
+    :return: the disturbed velocity vector
+    """
+    wind_disturbance = rng.normal(0, wind_sigma, size=v.shape)
+    return v + wind_disturbance
+
 
 
 def control_u_phi(e_phi, e_phi_dot, k_p_phi, k_d_phi):

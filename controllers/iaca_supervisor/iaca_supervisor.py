@@ -1,6 +1,5 @@
 from controller import Supervisor
 import json
-import math
 import numpy as np
 import os
 import sys
@@ -72,7 +71,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
 
     interior = noisy[1:-1, 1:-1]
     noise_bound = noise_fraction * p_max
-    noise = rng.uniform(-noise_bound, noise_bound, size=interior.shape)
+    noise = RNG.uniform(-noise_bound, noise_bound, size=interior.shape)
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -225,8 +224,6 @@ for drone_def in drone_defs:
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 
-# Numpy RNG
-rng = np.random.default_rng(SEED)
 
 paths = {drone_def: [] for drone_def in drone_defs}
 coverage_history = []
@@ -342,6 +339,8 @@ while robot.step(timestep) != -1:
     coverage = get_coverage_percent(observed_mask)
     coverage_history.append(coverage)
 
+    if step_count % PRINT_INTERVAL == 0:
+        print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
 
     if step_count >= MAX_STEPS:
         output_dir = os.path.dirname(__file__)

@@ -7,6 +7,11 @@ sys.path.append(shared_path)
 import shared_constants as sc
 
 SEED = sc.SEED
+RNG = sc.RNG
+
+WIND_SIGMA = sc.WIND_SIGMA
+WIND_TIME_STEP = sc.WIND_TIME_STEP
+SIMULATE_WIND = sc.SIMULATE_WIND
 
 ## Known working values
 # DELTA_V_MAX = 0.05

@@ -7,6 +7,7 @@ sys.path.append(shared_path)
 import shared_constants as sc
 
 SEED = sc.SEED
+RNG = sc.RNG
 
 WORLD_X_MIN = sc.WORLD_X_MIN
 WORLD_X_MAX = sc.WORLD_X_MAX

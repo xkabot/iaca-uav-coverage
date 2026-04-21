@@ -1,6 +1,5 @@
 from controller import Robot
 import json
-import math
 import numpy as np
 import os
 import sys
@@ -194,6 +193,10 @@ while robot.step(timestep) != -1:
             else:
                 effective_delta = DELTA_V_MAX
 
+            # Update velocity to simulate wind disturbance and imperfect control, then clamp to max speed
+            if SIMULATE_WIND and round(current_time) % WIND_TIME_STEP == 0:
+                v_new = eq.apply_wind_disturbance(v_world, wind_sigma=WIND_SIGMA, rng=RNG)
+            
             v_new = eq.update_drone_velocity(
                 v_current=v_world,
                 F_a=f_total,

@@ -1,7 +1,12 @@
 ## GLOBAL VARIABLES
 
 # Define a shared seed so changes can be compared
+import numpy as np
+
+
 SEED = 2000
+# Numpy RNG
+RNG = np.random.default_rng(SEED)
 
 MAX_STEPS = 20000
 HEIGHT_DESIRED = 2.0
@@ -11,6 +16,10 @@ WORLD_X_MIN = -100.0
 WORLD_X_MAX = 100.0
 WORLD_Y_MIN = -100.0
 WORLD_Y_MAX = 100.0
+
+SIMULATE_WIND = True
+WIND_SIGMA = 3.0
+WIND_TIME_STEP = 20
 
 GRID_ROWS = 200
 GRID_COLS = 200
