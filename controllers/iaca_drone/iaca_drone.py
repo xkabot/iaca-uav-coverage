@@ -237,6 +237,13 @@ while robot.step(timestep) != -1:
     forward_desired = v_body[0]
     sideways_desired = v_body[1]
 
+    v_gps_global = eq.estimate_velocity(
+        [x_global, y_global],
+        [past_x_global, past_y_global],
+        dt
+    )
+    v_gps_body = eq.global_to_body_velocity(v_gps_global, yaw)
+
     # PID controller
     motor_power = PID_crazyflie.pid(
         dt,
@@ -249,8 +256,8 @@ while robot.step(timestep) != -1:
         yaw_rate,
         altitude,
         # actual body-frame velocity from GPS diff
-        (x_global - past_x_global) / dt * cos(yaw) + (y_global - past_y_global) / dt * sin(yaw),
-        -(x_global - past_x_global) / dt * sin(yaw) + (y_global - past_y_global) / dt * cos(yaw),
+        v_gps_body[0],
+        v_gps_body[1],
     )
 
     m1_motor.setVelocity(-motor_power[0])

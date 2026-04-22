@@ -130,22 +130,16 @@ def compute_priority_map(p_map, drone_grid_positions, epsilon):
     rows, cols = p_map.shape
     total_cells = rows * cols
 
-    raw = np.zeros_like(p_map, dtype=float)
-    for row in range(rows):
-        for col in range(cols):
-            raw[row, col] = eq.get_raw_inverted_priority(p_map[row, col], epsilon)
+    # Eq 4: raw inversion
+    raw = eq.get_raw_inverted_priority(p_map, epsilon)
 
+    # Eq 5: rank-based normalization
     flat = raw.flatten()
-    order = np.argsort(flat)
-    ranks = np.empty_like(order, dtype=float)
-    ranks[order] = np.arange(total_cells, dtype=float)
+    ranks = np.empty_like(flat, dtype=float)
+    ranks[np.argsort(flat)] = np.arange(total_cells, dtype=float)
+    priority_map = eq.normalize_priority(ranks, rows, cols)
 
-    priority_map = np.zeros_like(p_map, dtype=float)
-    for idx, rank in enumerate(ranks):
-        row = idx // cols
-        col = idx % cols
-        priority_map[row, col] = eq.normalize_priority(rank, total_cells)
-
+    # Zero out drone positions
     for row, col in drone_grid_positions:
         if 0 <= row < rows and 0 <= col < cols:
             priority_map[row, col] = 0.0
@@ -259,6 +253,7 @@ emitter = robot.getDevice("cmd_emitter")
 
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
+priority_map = np.zeros((GRID_ROWS, GRID_COLS), dtype=float)
 
 # Numpy RNG
 rng = np.random.default_rng(SEED)
@@ -276,6 +271,10 @@ print("IACA supervisor started")
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
     step_count += 1
+
+    is_supervisor_step = (step_count % SUPERVISOR_STEP_SIZE == 0)
+    is_save_step = (step_count % SAVE_MAPS_INTERVAL == 0)
+    is_final_step = (step_count >= MAX_STEPS)
 
     drone_states = {}
     drone_grid_positions = []
@@ -310,93 +309,88 @@ while robot.step(timestep) != -1:
 
         mark_observed_cells(observed_mask, grid_row, grid_col, SENSOR_RADIUS_CELLS)
 
-    # if not at a supervisor step or map save step, skip the rest of the loop and just wait for the next step
-    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0 and step_count % SAVE_MAPS_INTERVAL != 0:
-        continue
+    # Pheromone/priority only update on supervisor cadence, never because of a save
+    if is_supervisor_step or is_final_step:
+        pheromone_map = update_pheromone_map(
+            p_map=pheromone_map,
+            drone_grid_positions=drone_grid_positions,
+            p_max=P_MAX,
+            alpha_pheromone=ALPHA_PHEROMONE,
+            lam=LAMBDA,
+            update_radius=SENSOR_RADIUS_CELLS,
+            noise_fraction=0.05
+        )
+        priority_map = compute_priority_map(
+            p_map=pheromone_map,
+            drone_grid_positions=drone_grid_positions,
+            epsilon=EPSILON
+        )
 
-    pheromone_map = update_pheromone_map_local(
-        p_map=pheromone_map,
-        drone_grid_positions=drone_grid_positions,
-        p_max=P_MAX,
-        alpha_pheromone=ALPHA_PHEROMONE,
-        lam=LAMBDA,
-        update_radius=SENSOR_RADIUS_CELLS,
-        noise_fraction=0.05
-    )
-
-    priority_map = compute_priority_map(
-        p_map=pheromone_map,
-        drone_grid_positions=drone_grid_positions,
-        epsilon=EPSILON
-    )
-
-    if step_count % SAVE_MAPS_INTERVAL == 0:
+    if is_save_step or is_final_step:
         pheromone_snapshots.append(pheromone_map.copy().astype(np.float32))
         priority_snapshots.append(priority_map.copy().astype(np.float32))
         snapshot_steps.append(step_count)
         snapshot_times.append(current_time)
 
-    # if this is not a supervisor step, skip sending commands to drones and just wait for the next step
-    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0:
-        continue
+    # Command sending also independent
+    if is_supervisor_step or is_final_step:
+        for drone_def in drone_defs:
+            state = drone_states[drone_def]
+            row = state["grid_row"]
+            col = state["grid_col"]
 
-    for drone_def in drone_defs:
-        state = drone_states[drone_def]
-        row = state["grid_row"]
-        col = state["grid_col"]
+            if current_time < STARTUP_HOVER_TIME:
+                # During startup just send hover with empty neighbors
+                command = {
+                    "neighbors": {},
+                    "drone_row": row,
+                    "drone_col": col,
+                    "yaw_desired": 0.0,
+                    "height_desired": HEIGHT_DESIRED,
+                    "startup": True,
+                }
+            else:
+                neighbor_cells = get_neighbor_cells(row, col, GRID_ROWS, GRID_COLS)
+                neighbor_priorities = {}
+                for n_row, n_col in neighbor_cells:
+                    # Convert grid position to world coords so drone can compute r_k
+                    world_x, world_y = grid_to_world(
+                        row=n_row,
+                        col=n_col,
+                        x_min=WORLD_X_MIN,
+                        x_max=WORLD_X_MAX,
+                        y_min=WORLD_Y_MIN,
+                        y_max=WORLD_Y_MAX,
+                        rows=GRID_ROWS,
+                        cols=GRID_COLS
+                    )
+                    key = f"{n_row},{n_col}"
+                    neighbor_priorities[key] = {
+                        "q": float(priority_map[n_row, n_col]),
+                        "wx": world_x,
+                        "wy": world_y,
+                    }
 
-        if current_time < STARTUP_HOVER_TIME:
-            # During startup just send hover with empty neighbors
-            command = {
-                "neighbors": {},
-                "drone_row": row,
-                "drone_col": col,
-                "yaw_desired": 0.0,
-                "height_desired": HEIGHT_DESIRED,
-                "startup": True,
-            }
-        else:
-            neighbor_cells = get_neighbor_cells(row, col, GRID_ROWS, GRID_COLS)
-            neighbor_priorities = {}
-            for n_row, n_col in neighbor_cells:
-                # Convert grid position to world coords so drone can compute r_k
-                world_x, world_y = grid_to_world(
-                    row=n_row,
-                    col=n_col,
-                    x_min=WORLD_X_MIN,
-                    x_max=WORLD_X_MAX,
-                    y_min=WORLD_Y_MIN,
-                    y_max=WORLD_Y_MAX,
-                    rows=GRID_ROWS,
-                    cols=GRID_COLS
-                )
-                key = f"{n_row},{n_col}"
-                neighbor_priorities[key] = {
-                    "q": float(priority_map[n_row, n_col]),
-                    "wx": world_x,
-                    "wy": world_y,
+                command = {
+                    "neighbors": neighbor_priorities,
+                    "drone_row": row,
+                    "drone_col": col,
+                    "yaw_desired": 0.0,
+                    "height_desired": HEIGHT_DESIRED,
+                    "startup": False,
                 }
 
-            command = {
-                "neighbors": neighbor_priorities,
-                "drone_row": row,
-                "drone_col": col,
-                "yaw_desired": 0.0,
-                "height_desired": HEIGHT_DESIRED,
-                "startup": False,
-            }
+            emitter.setChannel(drone_channels[drone_def])
+            payload = json.dumps(command).encode("utf-8")
+            emitter.send(payload)
 
-        emitter.setChannel(drone_channels[drone_def])
-        payload = json.dumps(command).encode("utf-8")
-        emitter.send(payload)
+        coverage = get_coverage_percent(observed_mask)
+        coverage_history.append(coverage)
 
-    coverage = get_coverage_percent(observed_mask)
-    coverage_history.append(coverage)
+        if step_count % PRINT_INTERVAL == 0:
+            print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
 
-    if step_count % PRINT_INTERVAL == 0:
-        print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
-
-    if step_count >= MAX_STEPS:
+    if is_final_step:
         output_dir = os.path.dirname(__file__)
         temp_path = os.path.join(output_dir, "iaca_run_output.tmp.npz")
         output_path = os.path.join(output_dir, "iaca_run_output.npz")
