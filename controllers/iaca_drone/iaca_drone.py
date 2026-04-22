@@ -137,7 +137,6 @@ while robot.step(timestep) != -1:
 
     if current_time - last_wind_update_time >= WIND_UPDATE_PERIOD:
         wind_vector_world = sample_bounded_gaussian_wind(
-            rng=rng,
             std=WIND_STD,
             max_mag=WIND_MAX
         )

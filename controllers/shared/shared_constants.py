@@ -8,7 +8,7 @@ RNG = np.random.default_rng(SEED)
 TICK_RATE_MS = 32 # each webots simulation step is 32 ms
 TICK_RATE_SEC = TICK_RATE_MS / 1000  # seconds per simulation step
 
-MAX_STEPS = 15000
+MAX_STEPS = 50000
 HEIGHT_DESIRED = 2.0
 
 # in meters from center
