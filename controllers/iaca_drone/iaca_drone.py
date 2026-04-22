@@ -22,6 +22,7 @@ def clamp_vector_norm(v, max_norm):
         return v
     return (v / norm) * max_norm
 
+
 def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
     """
     Returns a force pushing drone back toward map center when near or outside bounds.
@@ -48,6 +49,7 @@ def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
 
     return np.array([fx, fy], dtype=float)
 
+
 def sample_bounded_gaussian_wind(std, max_mag):
     """
     Sample a 2D wind vector from a bounded Gaussian-like distribution.
@@ -57,6 +59,7 @@ def sample_bounded_gaussian_wind(std, max_mag):
     """
     wind = RNG.normal(loc=0.0, scale=std, size=2)
     return clamp_vector_norm(wind, max_mag)
+
 
 last_wind_update_time = 0
 wind_vector_world = sample_bounded_gaussian_wind(WIND_STD, WIND_MAX)
@@ -117,10 +120,10 @@ past_time = 0.0
 first_time = True
 
 # Drone state
-v_world = np.zeros(2, dtype=float)       # current filtered world-frame velocity
+v_world = np.zeros(2, dtype=float)  # current filtered world-frame velocity
 yaw_desired = 0.0
 height_desired = FLYING_ATTITUDE
-last_neighbors = {}                       # most recent neighbor dict from supervisor
+last_neighbors = {}  # most recent neighbor dict from supervisor
 startup = True
 
 print("Crazyflie iaca_drone started")

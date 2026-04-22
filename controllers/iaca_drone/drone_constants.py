@@ -21,7 +21,7 @@ BOUNDARY_STRENGTH = .9
 BOUNDARY_MARGIN = 10.0
 
 DELTA_V_MAX = 0.09
-ALPHA_VELOCITY = 0.9 # movement smoothing factor
+ALPHA_VELOCITY = 0.9  # movement smoothing factor
 MAX_WORLD_SPEED = 1.5
 
 WIND_UPDATE_PERIOD = 20.0

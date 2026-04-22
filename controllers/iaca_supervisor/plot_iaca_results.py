@@ -72,6 +72,7 @@ def plot_heatmap(matrix, title):
     plt.title(title)
     plt.show()
 
+
 def plot_maps(data, snapshot_index=-1):
     """
     Plot pheromone + priority maps at a given snapshot index.
@@ -90,7 +91,7 @@ def plot_maps(data, snapshot_index=-1):
     pheromone_map = pheromone_snapshots[snapshot_index]
     priority_map = priority_snapshots[snapshot_index]
 
-    print(f"Plotting snapshot {snapshot_index} / {len(pheromone_snapshots)-1}")
+    print(f"Plotting snapshot {snapshot_index} / {len(pheromone_snapshots) - 1}")
 
     plot_heatmap(pheromone_map, f"Pheromone Map (snapshot {snapshot_index})")
     plot_heatmap(priority_map, f"Priority Map (snapshot {snapshot_index})")
