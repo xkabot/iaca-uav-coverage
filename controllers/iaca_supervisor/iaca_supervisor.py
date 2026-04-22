@@ -265,6 +265,10 @@ rng = np.random.default_rng(SEED)
 
 paths = {drone_def: [] for drone_def in drone_defs}
 coverage_history = []
+pheromone_snapshots = []
+priority_snapshots = []
+snapshot_steps = []
+snapshot_times = []
 
 step_count = 0
 
@@ -275,8 +279,6 @@ while robot.step(timestep) != -1:
 
     drone_states = {}
     drone_grid_positions = []
-    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0:
-        continue
 
     for drone_def in drone_defs:
         pos = translation_fields[drone_def].getSFVec3f()
@@ -308,6 +310,10 @@ while robot.step(timestep) != -1:
 
         mark_observed_cells(observed_mask, grid_row, grid_col, SENSOR_RADIUS_CELLS)
 
+    # if not at a supervisor step or map save step, skip the rest of the loop and just wait for the next step
+    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0 and step_count % SAVE_MAPS_INTERVAL != 0:
+        continue
+
     pheromone_map = update_pheromone_map_local(
         p_map=pheromone_map,
         drone_grid_positions=drone_grid_positions,
@@ -323,6 +329,16 @@ while robot.step(timestep) != -1:
         drone_grid_positions=drone_grid_positions,
         epsilon=EPSILON
     )
+
+    if step_count % SAVE_MAPS_INTERVAL == 0:
+        pheromone_snapshots.append(pheromone_map.copy().astype(np.float32))
+        priority_snapshots.append(priority_map.copy().astype(np.float32))
+        snapshot_steps.append(step_count)
+        snapshot_times.append(current_time)
+
+    # if this is not a supervisor step, skip sending commands to drones and just wait for the next step
+    if step_count < MAX_STEPS and step_count % SUPERVISOR_STEP_SIZE != 0:
+        continue
 
     for drone_def in drone_defs:
         state = drone_states[drone_def]
@@ -393,6 +409,10 @@ while robot.step(timestep) != -1:
             "grid_rows": GRID_ROWS,
             "grid_cols": GRID_COLS,
             "coverage_history": np.array(coverage_history, dtype=np.float32),
+            "snapshot_steps": np.array(snapshot_steps, dtype=np.int32),
+            "snapshot_times": np.array(snapshot_times, dtype=np.float32),
+            "pheromone_snapshots": np.stack(pheromone_snapshots).astype(np.float32) if len(pheromone_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
+            "priority_snapshots": np.stack(priority_snapshots).astype(np.float32) if len(priority_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
         }
 
         for drone_def in drone_defs:

@@ -25,13 +25,13 @@
 - We can totally do matrix operations / convolution for the pheromone / priority map updates prolly. which would speed up the code hella.
 
 
-- The way I'm logging the data isn't the same as the paper; they say they do "UAV positions are recorded at each time step, 
-and the pheromone and priority matrices are archived every 100 steps for offline analysis", i do location & matrices every like 20, so should probably match them.
+- ~~The way I'm logging the data isn't the same as the paper; they say they do "UAV positions are recorded at each time step, 
+and the pheromone and priority matrices are archived every 100 steps for offline analysis", i do location & matrices every like 20, so should probably match them.~~ - Did this too
 
 
-- Having some way to dynamically alter the number of drones (with a constant in the `shared_constant.py` file) and their starting location 
+- ~~Having some way to dynamically alter the number of drones (with a constant in the `shared_constant.py` file) and their starting location 
 (to fit the number of drones without being too close). Right now I am manually adding them in the webots file,
-and manually moving their starting positions, which is hella tedious. Paper says they do this: "supervisor instantiates a specified number of drones positioned symmetrically using a regular polygon inscribed in a circle".
+and manually moving their starting positions, which is hella tedious. Paper says they do this: "supervisor instantiates a specified number of drones positioned symmetrically using a regular polygon inscribed in a circle".~~ - Did this too aswell
 
 
 ## v3.2

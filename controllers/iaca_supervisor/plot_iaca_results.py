@@ -5,20 +5,10 @@ from supervisor_constants import *
 
 
 def load_data(path):
-    """
-    Load the compressed NumPy run output.
-    :param path: path to .npz file
-    :return: loaded npz object
-    """
     return np.load(path)
 
 
 def plot_coverage(coverage_history):
-    """
-    Plot coverage percentage over time.
-    :param coverage_history: 1D array of coverage values
-    :return: None
-    """
     x = [i * SUPERVISOR_STEP_SIZE for i in range(len(coverage_history))]
 
     plt.figure()
@@ -31,11 +21,6 @@ def plot_coverage(coverage_history):
 
 
 def plot_paths(data):
-    """
-    Plot drone paths in world coordinates.
-    :param data: loaded npz object
-    :return: None
-    """
     bounds = {
         "x_min": float(data["world_x_min"]),
         "x_max": float(data["world_x_max"]),
@@ -45,7 +30,6 @@ def plot_paths(data):
 
     plt.figure()
 
-    # plot main paths
     for i in range(NUMBER_OF_DRONES):
         key = f"drone{i}_path"
         path = data[key]
@@ -56,59 +40,60 @@ def plot_paths(data):
         xs = path[:, 0]
         ys = path[:, 1]
 
-        plt.plot(xs, ys, label=f"DRONE{i}")
+        # Path
+        plt.plot(xs, ys, label=f"DRONE{i}", alpha=0.7)
 
-        # add an x to the end of the path to show where the drone ended up
-        end_x = xs[-1]
-        end_y = ys[-1]
-        plt.plot(end_x, end_y, 'rx', markersize=7, markeredgewidth=2)
+        # Start
+        plt.plot(xs[0], ys[0], 'go', markersize=6)
 
-    # plot start points
-    for i in range(NUMBER_OF_DRONES):
-        key = f"drone{i}_path"
-        path = data[key]
-
-        xs = path[:, 0]
-        ys = path[:, 1]
-
-        start_x = xs[0]
-        start_y = ys[0]
-        # add a circle at the start of the path to show where the drone started
-        plt.plot(start_x, start_y, 'go', markersize=7, markeredgewidth=2)
-
-
-    # plot end points
-    for i in range(NUMBER_OF_DRONES):
-        key = f"drone{i}_path"
-        path = data[key]
-
-        xs = path[:, 0]
-        ys = path[:, 1]
-
-        end_x = xs[-1]
-        end_y = ys[-1]
-        # add an x to the end of the path to show where the drone ended up
-        plt.plot(end_x, end_y, 'rx', markersize=7, markeredgewidth=2)
-
+        # End
+        plt.plot(xs[-1], ys[-1], 'rx', markersize=8, markeredgewidth=2)
 
     plt.xlim(bounds["x_min"], bounds["x_max"])
     plt.ylim(bounds["y_min"], bounds["y_max"])
 
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.title("Drone Paths")
+    plt.title("Drone Paths (Start = green, End = red X)")
     plt.legend()
     plt.gca().set_aspect("equal", adjustable="box")
     plt.grid()
     plt.show()
 
 
-def plot_everything(npz_path):
+def plot_heatmap(matrix, title):
+    plt.figure()
+    plt.imshow(matrix, origin="lower")
+    plt.colorbar()
+    plt.title(title)
+    plt.show()
+
+
+def plot_maps(data, snapshot_index=-1):
     """
-    Load and plot all saved data from the compressed run output.
-    :param npz_path: path to .npz file
-    :return: None
+    Plot pheromone + priority maps at a given snapshot index.
+    Default = last snapshot.
     """
+    pheromone_snapshots = data["pheromone_snapshots"]
+    priority_snapshots = data["priority_snapshots"]
+
+    if len(pheromone_snapshots) == 0:
+        print("No snapshots saved.")
+        return
+
+    # Handle negative indexing (default = last)
+    snapshot_index = snapshot_index % len(pheromone_snapshots)
+
+    pheromone_map = pheromone_snapshots[snapshot_index]
+    priority_map = priority_snapshots[snapshot_index]
+
+    print(f"Plotting snapshot {snapshot_index} / {len(pheromone_snapshots)-1}")
+
+    plot_heatmap(pheromone_map, f"Pheromone Map (snapshot {snapshot_index})")
+    plot_heatmap(priority_map, f"Priority Map (snapshot {snapshot_index})")
+
+
+def plot_everything(npz_path, snapshot_index=-1):
     data = load_data(npz_path)
 
     coverage_history = data["coverage_history"]
@@ -117,7 +102,8 @@ def plot_everything(npz_path):
 
     plot_coverage(coverage_history)
     plot_paths(data)
+    plot_maps(data, snapshot_index)
 
 
 if __name__ == "__main__":
-    plot_everything("iaca_run_output.npz")
+    plot_everything("iaca_run_output.npz", snapshot_index=-1)
