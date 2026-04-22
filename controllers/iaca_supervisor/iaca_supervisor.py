@@ -80,47 +80,34 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
     noisy[1:-1, 1:-1] = interior
     return noisy
 
-def update_pheromone_map_local(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, update_radius, noise_fraction):
+def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, noise_fraction):
     rows, cols = p_map.shape
-    new_map = p_map.copy()
-    cells_to_update = set()
+    drone_positions = np.array(drone_grid_positions)  # shape (N, 2)
 
-    num_drones = max(len(drone_grid_positions), 1)
+    # Build 2D grid of indices, shape (rows, cols)
+    R, C = np.meshgrid(np.arange(rows), np.arange(cols), indexing='ij')
 
-    for drone_row, drone_col in drone_grid_positions:
-        row_min = max(1, drone_row - update_radius)
-        row_max = min(rows - 2, drone_row + update_radius)
-        col_min = max(1, drone_col - update_radius)
-        col_max = min(cols - 2, drone_col + update_radius)
+    # Chebyshev distance from every cell to every drone, shape (N, rows, cols)
+    dr = np.abs(R[np.newaxis, :, :] - drone_positions[:, 0, np.newaxis, np.newaxis])
+    dc = np.abs(C[np.newaxis, :, :] - drone_positions[:, 1, np.newaxis, np.newaxis])
+    chebyshev = np.maximum(dr, dc)
 
-        for row in range(row_min, row_max + 1):
-            for col in range(col_min, col_max + 1):
-                cells_to_update.add((row, col))
+    # Sum contributions across drones, shape (rows, cols)
+    p_new = p_max * np.sum(lam ** chebyshev, axis=0)
+    p_new = np.clip(p_new, 0.0, p_max)
 
-    for row, col in cells_to_update:
-        total = 0.0
-        for drone_row, drone_col in drone_grid_positions:
-            total += lam ** max(abs(row - drone_row), abs(col - drone_col))
+    # Noise on p_new before merging
+    p_new = add_pheromone_noise(new_map=p_new, p_max=p_max, noise_fraction=noise_fraction)
 
-        # Average instead of raw sum to prevent immediate saturation
-        p_new = p_max * (total / num_drones)
+    # exponential smoothing over full map
+    new_map = eq.get_updated_pheromone_cell(p_map, p_new, alpha_pheromone)
+    new_map = np.clip(new_map, 0.0, p_max)
 
-        value = alpha_pheromone * p_map[row, col] + (1.0 - alpha_pheromone) * p_new
-        new_map[row, col] = clamp(value, 0.0, p_max)
-
-    new_map = add_pheromone_noise(
-        new_map=new_map,
-        p_max=p_max,
-        noise_fraction=noise_fraction
-    )
-
-    for drone_row, drone_col in drone_grid_positions:
-        new_map[drone_row, drone_col] = p_max
-
-    # Ghost border stays saturated and should never be attractive
-    new_map[0, :] = p_max
+    # Saturate drone cells and borders
+    new_map[tuple(drone_positions.T)] = p_max
+    new_map[0, :]  = p_max
     new_map[-1, :] = p_max
-    new_map[:, 0] = p_max
+    new_map[:, 0]  = p_max
     new_map[:, -1] = p_max
 
     return new_map
