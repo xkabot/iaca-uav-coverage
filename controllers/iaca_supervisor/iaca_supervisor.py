@@ -70,8 +70,8 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
         return noisy
 
     interior = noisy[1:-1, 1:-1]
-    noise_bound = noise_fraction * p_max
-    noise = RNG.uniform(-noise_bound, noise_bound, size=interior.shape)
+    rel_noise_bound = noise_fraction * interior
+    noise = RNG.uniform(-1.0, 1.0, size=interior.shape) * rel_noise_bound
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -79,47 +79,48 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
     noisy[1:-1, 1:-1] = interior
     return noisy
 
+
 def update_pheromone_map_local(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, update_radius, noise_fraction):
     rows, cols = p_map.shape
-    new_map = p_map.copy()
 
-    num_drones = max(len(drone_grid_positions), 1)
+    # Create (R,1) and (C,1) arrays of indices
+    map_rows = np.arange(rows)[np.newaxis, :]
+    map_cols = np.arange(cols)[np.newaxis, :]
 
-    update_cells = np.zeros(p_map.shape)
-    for drone_row, drone_col in drone_grid_positions:
-        row_min = max(1, drone_row - update_radius)
-        row_max = min(rows - 2, drone_row + update_radius)
-        col_min = max(1, drone_col - update_radius)
-        col_max = min(cols - 2, drone_col + update_radius)
+    # Get two create a (R,C,2) array of indices to calculate the distance of the drone positions,
+    # in both the x and y dimensions.
+    map_row_indices, map_col_indices = np.meshgrid(map_rows, map_cols, indexing='ij')
+    update_indices = np.stack([map_row_indices, map_col_indices], axis=-1).reshape(-1, 2)
 
-        update_cells[row_min:row_max + 1, col_min:col_max +  1] = 1
+    # Convert the drone positions into a (N,2) array
+    drone_positions = np.array(drone_grid_positions)
 
-    update_indices = np.argwhere(update_cells)  # Shape: (N, 2)
-    drone_positions = np.array(drone_grid_positions)  # Shape: (M, 2)
+    # First, calculate the distances from the drone positions in both the x and y dimensions.
+    # Then, calculate the max distance in either the x or y dimension for each drone
+    # Resulting shape: (R*C,4)
+    max_distances = np.max(
+        np.abs(update_indices[:, np.newaxis, :] - drone_positions[np.newaxis, :, :]), axis=2
+    )
+    # Then calculate the pheromone clouds of each drone
+    gradual_decay = lam ** max_distances
 
-    if len(update_indices) > 0 and len(drone_positions) > 0:
-        # Find the row and column distances between each pheromone cell and drone position
-        # Resulting shape: (N, 1, 2) - (1, M, 2) = (N, M, 2)
-        diff = np.abs(update_indices[:, np.newaxis, :] - drone_positions[np.newaxis, :, :])
+    # Store and calculate p_new in a (R,C) matrix
+    p_new = np.zeros((rows, cols))
 
-        # Calculate the higher values between the row and column distances
-        # Resulting shape: (N, M)
-        max_diff = np.max(diff, axis=2)
+    # Sum the drone values to create the p_new matrix
+    p_new[tuple(update_indices.T)] = p_max * np.sum(gradual_decay, axis=1)
 
-        # Calculate the average pheromone contributions
-        total = np.sum(lam ** max_diff, axis=1) / num_drones
-
-        # Calculate the new pheromone value for each cell to update in the new pheromone matrix
-        p_new = p_max * total
-        values = alpha_pheromone * p_map[tuple(update_indices.T)] + (1.0 - alpha_pheromone) * p_new
-        new_map[tuple(update_indices.T)] = np.clip(values, 0.0, p_max)
-
-    new_map = add_pheromone_noise(
-        new_map=new_map,
+    # The text says to add stochastic noise to the new matrix before merging
+    p_new_noisy = add_pheromone_noise(
+        new_map=p_new,
         p_max=p_max,
         noise_fraction=noise_fraction
     )
 
+    new_map = alpha_pheromone * p_map + (1.0 - alpha_pheromone) * p_new_noisy
+    new_map = np.clip(new_map, 0.0, p_max)
+
+    # The cell of the current drone is set to p_max
     new_map[tuple(drone_positions.T)] = p_max
 
     # Ghost border stays saturated and should never be attractive
@@ -143,11 +144,7 @@ def compute_priority_map(p_map, drone_grid_positions, epsilon):
     ranks = np.empty_like(order, dtype=float)
     ranks[order] = np.arange(total_cells, dtype=float)
 
-    priority_map = np.zeros_like(p_map, dtype=float)
-    for idx, rank in enumerate(ranks):
-        row = idx // cols
-        col = idx % cols
-        priority_map[row, col] = eq.normalize_priority(rank, total_cells)
+    priority_map = eq.normalize_priority(ranks, total_cells).reshape(rows, cols)
 
     for row, col in drone_grid_positions:
         if 0 <= row < rows and 0 <= col < cols:

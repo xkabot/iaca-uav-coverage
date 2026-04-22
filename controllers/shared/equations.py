@@ -239,7 +239,7 @@ def apply_wind_disturbance(v, wind_sigma, rng):
     :param rng: the random number generator to use for reproducibility
     :return: the disturbed velocity vector
     """
-    wind_disturbance = rng.normal(0, wind_sigma, size=v.shape)
+    wind_disturbance = rng.normal(0, wind_sigma, size=2)
     return v + wind_disturbance
 
 
