@@ -1,7 +1,9 @@
 ## GLOBAL VARIABLES
+import numpy as np
 
 # Define a shared seed so changes can be compared
 SEED = 1738
+RNG = np.random.default_rng(SEED)
 
 TICK_RATE_MS = 32 # each webots simulation step is 32 ms
 TICK_RATE_SEC = TICK_RATE_MS / 1000  # seconds per simulation step

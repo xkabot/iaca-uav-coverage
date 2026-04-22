@@ -71,8 +71,8 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
         return noisy
 
     interior = noisy[1:-1, 1:-1]
-    noise_bound = noise_fraction * p_max
-    noise = rng.uniform(-noise_bound, noise_bound, size=interior.shape)
+    rel_noise_bound = noise_fraction * interior
+    noise = RNG.uniform(-1.0, 1.0, size=interior.shape) * rel_noise_bound
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -124,7 +124,6 @@ def update_pheromone_map_local(p_map, drone_grid_positions, p_max, alpha_pheromo
     new_map[:, -1] = p_max
 
     return new_map
-
 
 def compute_priority_map(p_map, drone_grid_positions, epsilon):
     rows, cols = p_map.shape
