@@ -7,6 +7,7 @@ sys.path.append(shared_path)
 import shared_constants as sc
 
 SEED = sc.SEED
+RNG = sc.RNG
 
 WORLD_X_MIN = sc.WORLD_X_MIN
 WORLD_X_MAX = sc.WORLD_X_MAX
@@ -17,8 +18,8 @@ GRID_ROWS = sc.GRID_ROWS
 GRID_COLS = sc.GRID_COLS
 
 P_MAX = 220.0
-ALPHA_PHEROMONE = 0.99
-LAMBDA = 0.9
+ALPHA_PHEROMONE = 0.9  # Exponential decay factor for pheromone
+LAMBDA = 0.8  # Spatial decay factor for drone pheromone
 EPSILON = 1e-30
 
 HEIGHT_DESIRED = sc.HEIGHT_DESIRED

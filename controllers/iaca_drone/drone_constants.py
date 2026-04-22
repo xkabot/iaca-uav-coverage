@@ -7,6 +7,7 @@ sys.path.append(shared_path)
 import shared_constants as sc
 
 SEED = sc.SEED
+RNG = sc.RNG
 
 ## Known working values
 # DELTA_V_MAX = 0.05

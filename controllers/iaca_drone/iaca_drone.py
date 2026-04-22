@@ -48,20 +48,18 @@ def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
 
     return np.array([fx, fy], dtype=float)
 
-def sample_bounded_gaussian_wind(rng, std, max_mag):
+def sample_bounded_gaussian_wind(std, max_mag):
     """
     Sample a 2D wind vector from a bounded Gaussian-like distribution.
-    :param rng: numpy random generator
     :param std: standard deviation per component
     :param max_mag: maximum wind magnitude
     :return: numpy array [wind_x, wind_y]
     """
-    wind = rng.normal(loc=0.0, scale=std, size=2)
+    wind = RNG.normal(loc=0.0, scale=std, size=2)
     return clamp_vector_norm(wind, max_mag)
 
-rng = np.random.default_rng(SEED)
 last_wind_update_time = 0
-wind_vector_world = sample_bounded_gaussian_wind(rng, WIND_STD, WIND_MAX)
+wind_vector_world = sample_bounded_gaussian_wind(WIND_STD, WIND_MAX)
 
 robot = Robot()
 timestep = int(robot.getBasicTimeStep())
