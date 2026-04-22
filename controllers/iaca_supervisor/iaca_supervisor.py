@@ -38,6 +38,7 @@ def grid_to_world(row, col, x_min, x_max, y_min, y_max, rows, cols):
     y = y_min + y_ratio * (y_max - y_min)
     return x, y
 
+
 def build_border_decay_pheromone_map(rows, cols, p_max, lam):
     p = np.zeros((rows, cols), dtype=float)
     for i in range(rows):
@@ -80,6 +81,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
     noisy[1:-1, 1:-1] = interior
     return noisy
 
+
 def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, noise_fraction):
     rows, cols = p_map.shape
     drone_positions = np.array(drone_grid_positions)  # shape (N, 2)
@@ -105,12 +107,13 @@ def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, la
 
     # Saturate drone cells and borders
     new_map[tuple(drone_positions.T)] = p_max
-    new_map[0, :]  = p_max
+    new_map[0, :] = p_max
     new_map[-1, :] = p_max
-    new_map[:, 0]  = p_max
+    new_map[:, 0] = p_max
     new_map[:, -1] = p_max
 
     return new_map
+
 
 def compute_priority_map(p_map, drone_grid_positions, epsilon):
     rows, cols = p_map.shape
@@ -175,6 +178,7 @@ def mark_observed_cells(observed_mask, center_row, center_col, radius):
 def get_coverage_percent(observed_mask):
     return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
 
+
 def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spawn_height=0.5):
     root_node = supervisor_robot.getRoot()
     children_field = root_node.getField("children")
@@ -225,6 +229,7 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
         translation_fields[drone_def] = translation_field
 
     return drone_defs, drone_channels, translation_fields
+
 
 # get supervisor instance
 robot = Supervisor()
@@ -390,8 +395,10 @@ while robot.step(timestep) != -1:
             "coverage_history": np.array(coverage_history, dtype=np.float32),
             "snapshot_steps": np.array(snapshot_steps, dtype=np.int32),
             "snapshot_times": np.array(snapshot_times, dtype=np.float32),
-            "pheromone_snapshots": np.stack(pheromone_snapshots).astype(np.float32) if len(pheromone_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
-            "priority_snapshots": np.stack(priority_snapshots).astype(np.float32) if len(priority_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
+            "pheromone_snapshots": np.stack(pheromone_snapshots).astype(np.float32) if len(
+                pheromone_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
+            "priority_snapshots": np.stack(priority_snapshots).astype(np.float32) if len(
+                priority_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
         }
 
         for drone_def in drone_defs:
