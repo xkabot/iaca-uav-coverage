@@ -25,3 +25,5 @@ cell_size_y = (WORLD_Y_MAX - WORLD_Y_MIN) / (GRID_ROWS - 1)
 AVG_CELL_SIZE = 0.5 * (cell_size_x + cell_size_y)
 
 SENSOR_RADIUS_CELLS = max(1, round(SENSOR_RADIUS_METERS / AVG_CELL_SIZE))
+
+NUMBER_OF_DRONES = 5

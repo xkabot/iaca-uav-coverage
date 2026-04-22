@@ -50,24 +50,27 @@ def get_updated_pheromone_cell(i, j, p_cur, p_max, alpha, lam, drone_positions):
     return p_t
 
 
-def get_raw_inverted_priority(Pij, epsilon):
+def get_raw_inverted_priority(P, epsilon):
     """
     Equation 4 in paper.
     Gets the raw reciprocal inversion of the pheromone matrix.
     R_ij = 1 / (P_ij + epsilon); where R_ij is the raw priority value for cell (i, j), P_ij is the pheromone value for cell (i, j), and epsilon is a small constant to prevent division by zero.
-    :return: R_ij, the raw priority value for cell (i, j)
+    So this function can be applied elementwise to the entire pheromone matrix to get the raw priority matrix.
+    :return: R, the raw priority value for full map (using numpy arrays)
     """
-    return 1 / (Pij + epsilon)
+    return 1 / (P + epsilon)
 
-def normalize_priority(rank_Rij, N):
+def normalize_priority(ranks, rows, cols):
     """
     Equation 5 in paper.
     Normalize the raw priority values.
     R_ij is the raw priority value for cell (i, j). Rank_Rij is the index of R_ij in ascendingly sorted list of all matrix values.
     N is the total number of cells in the grid.
-    :return: N_ij, the normalized priority value for cell (i, j)
+    Using numpy we can do it all in 1 step with the argsort trick to get the ranks of each cell in the flattened array, then reshape back to the original dimensions.
+    :return: the fully normalized priority map
     """
-    return rank_Rij / N
+    N = rows * cols
+    return (ranks / N).reshape(rows, cols)
 
 def get_drone_attractive_force(Q_k, theta_k, r_k, D_max):
     """

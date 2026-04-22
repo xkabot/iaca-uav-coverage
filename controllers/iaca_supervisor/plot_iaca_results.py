@@ -62,12 +62,15 @@ def plot_paths(data):
 
 
 def plot_heatmap(matrix, title):
+    rows, cols = matrix.shape
+
     plt.figure()
     plt.imshow(matrix, origin="lower")
     plt.colorbar()
+    plt.xticks([0, cols - 1])
+    plt.yticks([0, rows - 1])
     plt.title(title)
     plt.show()
-
 
 def plot_maps(data, snapshot_index=-1):
     """
