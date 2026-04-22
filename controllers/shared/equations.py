@@ -33,22 +33,17 @@ def get_p_new(i, j, lam, p_max, drone_positions):
 
     return p_max * total
 
-def get_updated_pheromone_cell(i, j, p_cur, p_max, alpha, lam, drone_positions):
+def get_updated_pheromone_cell(p_cur, p_new, alpha):
     """
     Equation 3 in the paper.
-    Calculated new pheromone cell value by blending current and historical information via exponential smoothing.
-    :param i & j: the (i, j) coordinate of the pheromone cell
-    :param p_cur: the current value in the pheromone cell being replaced
-    :param p_max: the max pheromone value allowed
-    :param alpha: Variable controlling long-term memory and memory decay
-    :param lam: lambda (the spatial decay factor)
-    :param drone_positions: the (ik, jk) coordinates of all drones
-    :return: the new value to go in the pheromone grid at (i, j)
+    Blends current and new pheromone via exponential smoothing.
+    Works elementwise on scalars or full numpy arrays.
+    :param p_cur: current pheromone value(s)
+    :param p_new: new pheromone contribution(s)
+    :param alpha: smoothing factor
+    :return: updated pheromone value(s)
     """
-    p_new = get_p_new(i, j, lam, p_max, drone_positions)
-    p_t = alpha * p_cur + (1 - alpha) * p_new
-    return p_t
-
+    return alpha * p_cur + (1 - alpha) * p_new
 
 def get_raw_inverted_priority(P, epsilon):
     """
