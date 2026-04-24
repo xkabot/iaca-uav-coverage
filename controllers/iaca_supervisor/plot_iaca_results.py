@@ -93,8 +93,8 @@ def plot_maps(data, snapshot_index=-1):
 
     print(f"Plotting snapshot {snapshot_index} / {len(pheromone_snapshots) - 1}")
 
-    plot_heatmap(pheromone_map, f"Pheromone Map (snapshot {snapshot_index})")
-    plot_heatmap(priority_map, f"Priority Map (snapshot {snapshot_index})")
+    plot_heatmap(pheromone_map, f"Pheromone Map (snapshot {snapshot_index} / {len(pheromone_snapshots) - 1})")
+    plot_heatmap(priority_map, f"Priority Map (snapshot {snapshot_index} / {len(priority_snapshots) - 1})")
 
 
 def plot_everything(npz_path, snapshot_index=-1):
