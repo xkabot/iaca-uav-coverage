@@ -9,7 +9,7 @@ def load_data(path):
     return np.load(path)
 
 
-def animate_pheromone(data, interval_ms=200, repeat=True):
+def animate_pheromone(data, interval_ms=200, repeat=True, save_path=None):
     pheromone_snapshots = data["pheromone_snapshots"]
 
     if len(pheromone_snapshots) == 0:
@@ -54,11 +54,19 @@ def animate_pheromone(data, interval_ms=200, repeat=True):
         blit=False
     )
 
+    if save_path is not None:
+        print(f"Saving pheromone animation to {save_path}...")
+        if save_path.endswith(".gif"):
+            animation.save(save_path, writer="pillow", fps=1000//interval_ms)
+        else:
+            animation.save(save_path, writer="ffmpeg", fps=1000//interval_ms)
+        print("Done.")
+
     plt.show()
     return animation
 
 
-def animate_priority(data, interval_ms=200, repeat=True):
+def animate_priority(data, interval_ms=200, repeat=True, save_path=None):
     priority_snapshots = data["priority_snapshots"]
 
     if len(priority_snapshots) == 0:
@@ -103,6 +111,14 @@ def animate_priority(data, interval_ms=200, repeat=True):
         blit=False
     )
 
+    if save_path is not None:
+        print(f"Saving pheromone animation to {save_path}...")
+        if save_path.endswith(".gif"):
+            animation.save(save_path, writer="pillow", fps=1000//interval_ms)
+        else:
+            animation.save(save_path, writer="ffmpeg", fps=1000//interval_ms)
+        print("Done.")
+
     plt.show()
     return animation
 
@@ -113,8 +129,8 @@ def main():
     print(f"Loaded {len(data['pheromone_snapshots'])} pheromone snapshots.")
     print(f"Loaded {len(data['priority_snapshots'])} priority snapshots.")
 
-    animate_pheromone(data, interval_ms=150, repeat=True)
-    animate_priority(data, interval_ms=150, repeat=True)
+    animate_pheromone(data, interval_ms=150, repeat=True, save_path="../../pics/v4/pheromone.gif")
+    animate_priority(data, interval_ms=150, repeat=True, save_path="../../pics/v4/priority.gif")
 
 
 if __name__ == "__main__":

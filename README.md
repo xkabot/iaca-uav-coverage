@@ -14,28 +14,53 @@
 
 ## Current WEBOT setup
 
-*All tests so far have been done with 4 drones
+*For reference, each step is 32ms, so 15k steps is 8 minutes of simulated flight; 100k steps is 53 minutes of simulated flight.
 
-**For reference, each step is 32ms, so 15k steps is 8 minutes of simulated flight.
+## v4
+Travis - 04/23/2026
 
-## To be done (that i can think of right now):
-- ~~paper has random wind simulated, but we dont~~ - Done 
+### Things we've added since v3.2:
+- Added the stochastic simulated wind
+- Textures for buildings are back!
+- Updated how data-logging is occurring to match paper
+- Improved plotting script, and created a script to show animation of coverage / pheromone map. 
+- Added a dynamic creation of drone numbers & spawn points, for easier testing 
+- Caleb fixed our pheromone update function to actually match what the paper does.
+
+### Results
+Ok, we are able to run the full 700m by 700m area with 500x500 grid size, 4 drones, 1.5m/s max speed, 100k steps, and 10m coverage radius, 
+with the simulated wind, and we get about ~5.5x speedup, and about 55% coverage... Probably need to optimize the hyper-params to 
+get that higher. 
+
+<img src="pics/v4/coverage1.png" alt="coverage graph" width="800"/>
+
+<img src="pics/v4/paths1.png" alt="drone paths" width="800"/>
 
 
-- We can totally do matrix operations / convolution for the pheromone / priority map updates prolly. which would speed up the code hella.
+End of pheromone & priority map results below. 
+The pheromone map looks pretty close to what the paper looks like, which is expected. But also, you can see that there is effectively
+no pheromones left behind the drones, meaning there is no "trail" for the drones to avoid and therefore explore new areas...
+
+The priority map also looks vaguely similar to the papers, although they clearly did smoothing of their heatmaps snapshots, 
+as the paper's looks extremely smoothed, which is kinda a crazy thing to do, as it literally is altering the results 
+they show in the paper.
+
+<img src="pics/v4/pheromone-end1.png" alt="pheromone map" width="800"/>
+<img src="pics/v4/priority-end1.png" alt="priority map" width="800"/>
 
 
-- ~~The way I'm logging the data isn't the same as the paper; they say they do "UAV positions are recorded at each time step, 
-and the pheromone and priority matrices are archived every 100 steps for offline analysis", i do location & matrices every like 20, so should probably match them.~~ - Did this too
+Here are the gifs of the pheromone and priority maps over time. 
 
+<img src="pics/v4/pheromone.gif" alt="pheromone map gif" width="800"/>
 
-- ~~Having some way to dynamically alter the number of drones (with a constant in the `shared_constant.py` file) and their starting location 
-(to fit the number of drones without being too close). Right now I am manually adding them in the webots file,
-and manually moving their starting positions, which is hella tedious. Paper says they do this: "supervisor instantiates a specified number of drones positioned symmetrically using a regular polygon inscribed in a circle".~~ - Did this too aswell
+<img src="pics/v4/priority.gif" alt="priority map gif" width="800"/>
 
+I think the priority gif is a really good one because it shows the clear directional gradient towards the area that the drones haven't been in recently / no drones are nearby to.
 
 ## v3.2
 Travis - 04/16/2026
+
+*All tests so far have been done with 4 drones
 
 Ok so I was thinking about it and decided that a coverage radius of 30m is probably unrealistic, as to be able to see 30m in
 each direction the onboard cameras probably can't see anything in enough detail for it to be useful. Thus, I have shrunk the radius
