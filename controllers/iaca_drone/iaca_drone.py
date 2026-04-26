@@ -13,33 +13,56 @@ shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
 sys.path.append(shared_path)
 
 import equations as eq
+from drone_constants import *
 
 
-FLYING_ATTITUDE = 2.0
-## Known working values
-# DELTA_V_MAX = 0.05
-# ALPHA_VELOCITY = 0.92
-# MAX_WORLD_SPEED = 1.0
-# BOUNDARY_STRENGTH = 0.5
-# BOUNDARY_MARGIN = 4.0
+def clamp_vector_norm(v, max_norm):
+    norm = np.linalg.norm(v)
+    if norm == 0.0 or norm <= max_norm:
+        return v
+    return (v / norm) * max_norm
 
 
-## Unknown values im testing to try and improve drone speed / turning
-BOUNDARY_STRENGTH = .9
-BOUNDARY_MARGIN = 5.0
+def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
+    """
+    Returns a force pushing drone back toward map center when near or outside bounds.
+    Force scales linearly from 0 at the margin boundary to full strength at the edge.
+    """
+    x, y = drone_pos
+    fx, fy = 0.0, 0.0
 
-DELTA_V_MAX = 0.08
-ALPHA_VELOCITY = 0.88
-MAX_WORLD_SPEED = 1.5
+    # X boundaries
+    if x < x_min + margin:
+        t = 1.0 - max(x - x_min, 0.0) / margin
+        fx += strength * t
+    elif x > x_max - margin:
+        t = 1.0 - max(x_max - x, 0.0) / margin
+        fx -= strength * t
+
+    # Y boundaries
+    if y < y_min + margin:
+        t = 1.0 - max(y - y_min, 0.0) / margin
+        fy += strength * t
+    elif y > y_max - margin:
+        t = 1.0 - max(y_max - y, 0.0) / margin
+        fy -= strength * t
+
+    return np.array([fx, fy], dtype=float)
 
 
-D_MAX = math.sqrt(2.0)  # max diagonal distance between neighboring cells in grid units
+def sample_bounded_gaussian_wind(std, max_mag):
+    """
+    Sample a 2D wind vector from a bounded Gaussian-like distribution.
+    :param std: standard deviation per component
+    :param max_mag: maximum wind magnitude
+    :return: numpy array [wind_x, wind_y]
+    """
+    wind = RNG.normal(loc=0.0, scale=std, size=2)
+    return clamp_vector_norm(wind, max_mag)
 
-WORLD_X_MIN = -30.0
-WORLD_X_MAX = 30.0
-WORLD_Y_MIN = -30.0
-WORLD_Y_MAX = 35.0
 
+last_wind_update_time = 0
+wind_vector_world = sample_bounded_gaussian_wind(WIND_STD, WIND_MAX)
 
 robot = Robot()
 timestep = int(robot.getBasicTimeStep())
@@ -97,47 +120,13 @@ past_time = 0.0
 first_time = True
 
 # Drone state
-v_world = np.zeros(2, dtype=float)       # current filtered world-frame velocity
+v_world = np.zeros(2, dtype=float)  # current filtered world-frame velocity
 yaw_desired = 0.0
 height_desired = FLYING_ATTITUDE
-last_neighbors = {}                       # most recent neighbor dict from supervisor
+last_neighbors = {}  # most recent neighbor dict from supervisor
 startup = True
 
 print("Crazyflie iaca_drone started")
-
-
-def clamp_vector_norm(v, max_norm):
-    norm = np.linalg.norm(v)
-    if norm == 0.0 or norm <= max_norm:
-        return v
-    return (v / norm) * max_norm
-
-def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
-    """
-    Returns a force pushing drone back toward map center when near or outside bounds.
-    Force scales linearly from 0 at the margin boundary to full strength at the edge.
-    """
-    x, y = drone_pos
-    fx, fy = 0.0, 0.0
-
-    # X boundaries
-    if x < x_min + margin:
-        t = 1.0 - max(x - x_min, 0.0) / margin
-        fx += strength * t
-    elif x > x_max - margin:
-        t = 1.0 - max(x_max - x, 0.0) / margin
-        fx -= strength * t
-
-    # Y boundaries
-    if y < y_min + margin:
-        t = 1.0 - max(y - y_min, 0.0) / margin
-        fy += strength * t
-    elif y > y_max - margin:
-        t = 1.0 - max(y_max - y, 0.0) / margin
-        fy -= strength * t
-
-    return np.array([fx, fy], dtype=float)
-
 
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
@@ -148,6 +137,15 @@ while robot.step(timestep) != -1:
         past_time = current_time
         first_time = False
         continue
+
+    if current_time - last_wind_update_time >= WIND_UPDATE_PERIOD:
+        wind_vector_world = sample_bounded_gaussian_wind(
+            std=WIND_STD,
+            max_mag=WIND_MAX
+        )
+        last_wind_update_time = current_time
+
+        print(f"New wind vector: ({wind_vector_world[0]:.3f}, {wind_vector_world[1]:.3f})")
 
     dt = current_time - past_time
     if dt <= 0.0:
@@ -232,9 +230,19 @@ while robot.step(timestep) != -1:
             )
             v_world = clamp_vector_norm(v_world, MAX_WORLD_SPEED)
 
-    v_body = eq.global_to_body_velocity(v_world, yaw)
+    v_effective_world = v_world + wind_vector_world
+    v_effective_world = clamp_vector_norm(v_effective_world, MAX_WORLD_SPEED)
+
+    v_body = eq.global_to_body_velocity(v_effective_world, yaw)
     forward_desired = v_body[0]
     sideways_desired = v_body[1]
+
+    v_gps_global = eq.estimate_velocity(
+        [x_global, y_global],
+        [past_x_global, past_y_global],
+        dt
+    )
+    v_gps_body = eq.global_to_body_velocity(v_gps_global, yaw)
 
     # PID controller
     motor_power = PID_crazyflie.pid(
@@ -248,8 +256,8 @@ while robot.step(timestep) != -1:
         yaw_rate,
         altitude,
         # actual body-frame velocity from GPS diff
-        (x_global - past_x_global) / dt * cos(yaw) + (y_global - past_y_global) / dt * sin(yaw),
-        -(x_global - past_x_global) / dt * sin(yaw) + (y_global - past_y_global) / dt * cos(yaw),
+        v_gps_body[0],
+        v_gps_body[1],
     )
 
     m1_motor.setVelocity(-motor_power[0])
