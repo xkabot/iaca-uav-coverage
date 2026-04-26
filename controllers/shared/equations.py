@@ -5,10 +5,6 @@ import numpy as np
 import math
 
 
-# Define a shared seed so changes can be compared
-SEED = 1738
-
-
 def delta_p_ij_k(i, j, i_k, j_k, lam):
     """
     Equation 1 in paper.
@@ -21,6 +17,7 @@ def delta_p_ij_k(i, j, i_k, j_k, lam):
     i_diff = abs(i - i_k)
     j_diff = abs(j - j_k)
     return lam ** max(i_diff, j_diff)
+
 
 def get_p_new(i, j, lam, p_max, drone_positions):
     """
@@ -38,41 +35,43 @@ def get_p_new(i, j, lam, p_max, drone_positions):
 
     return p_max * total
 
-def get_updated_pheromone_cell(i, j, p_cur, p_max, alpha, lam, drone_positions):
+
+def get_updated_pheromone_cell(p_cur, p_new, alpha):
     """
     Equation 3 in the paper.
-    Calculated new pheromone cell value by blending current and historical information via exponential smoothing.
-    :param i & j: the (i, j) coordinate of the pheromone cell
-    :param p_cur: the current value in the pheromone cell being replaced
-    :param p_max: the max pheromone value allowed
-    :param alpha: Variable controlling long-term memory and memory decay
-    :param lam: lambda (the spatial decay factor)
-    :param drone_positions: the (ik, jk) coordinates of all drones
-    :return: the new value to go in the pheromone grid at (i, j)
+    Blends current and new pheromone via exponential smoothing.
+    Works elementwise on scalars or full numpy arrays.
+    :param p_cur: current pheromone value(s)
+    :param p_new: new pheromone contribution(s)
+    :param alpha: smoothing factor
+    :return: updated pheromone value(s)
     """
-    p_new = get_p_new(i, j, lam, p_max, drone_positions)
-    p_t = alpha * p_cur + (1 - alpha) * p_new
-    return p_t
+    return alpha * p_cur + (1 - alpha) * p_new
 
 
-def get_raw_inverted_priority(Pij, epsilon):
+def get_raw_inverted_priority(P, epsilon):
     """
     Equation 4 in paper.
     Gets the raw reciprocal inversion of the pheromone matrix.
     R_ij = 1 / (P_ij + epsilon); where R_ij is the raw priority value for cell (i, j), P_ij is the pheromone value for cell (i, j), and epsilon is a small constant to prevent division by zero.
-    :return: R_ij, the raw priority value for cell (i, j)
+    So this function can be applied elementwise to the entire pheromone matrix to get the raw priority matrix.
+    :return: R, the raw priority value for full map (using numpy arrays)
     """
-    return 1 / (Pij + epsilon)
+    return 1 / (P + epsilon)
 
-def normalize_priority(rank_Rij, N):
+
+def normalize_priority(ranks, rows, cols):
     """
     Equation 5 in paper.
     Normalize the raw priority values.
     R_ij is the raw priority value for cell (i, j). Rank_Rij is the index of R_ij in ascendingly sorted list of all matrix values.
     N is the total number of cells in the grid.
-    :return: N_ij, the normalized priority value for cell (i, j)
+    Using numpy we can do it all in 1 step with the argsort trick to get the ranks of each cell in the flattened array, then reshape back to the original dimensions.
+    :return: the fully normalized priority map
     """
-    return rank_Rij / N
+    N = rows * cols
+    return (ranks / N).reshape(rows, cols)
+
 
 def get_drone_attractive_force(Q_k, theta_k, r_k, D_max):
     """
@@ -84,7 +83,7 @@ def get_drone_attractive_force(Q_k, theta_k, r_k, D_max):
 
     :return: F_k, the attractive force for a drone at cell (i, j)
     """
-    norm = np.linalg.norm(r_k) # || r_k ||
+    norm = np.linalg.norm(r_k)  # || r_k ||
 
     term1 = 0.1 * math.cos(theta_k)
     term2 = 0.1 * (norm / D_max)
@@ -123,6 +122,7 @@ def get_total_attracting_force(neighbors, drone_pos, v_old, D_max):
 
     return F_a
 
+
 def get_velocity_adjustment(F_a, v_max):
     """
     Equation 8 in paper.
@@ -131,6 +131,7 @@ def get_velocity_adjustment(F_a, v_max):
     :return: the velocity adjustment for the drone
     """
     return v_max * (F_a / np.linalg.norm(F_a))
+
 
 def update_drone_velocity(v_current, F_a, v_max):
     """
@@ -142,6 +143,7 @@ def update_drone_velocity(v_current, F_a, v_max):
     :return: the new velocity for the drone
     """
     return v_current + get_velocity_adjustment(F_a, v_max)
+
 
 def stability_aware_velocity_adjustment(v_t_minus_1, v_new, alpha):
     """
@@ -166,12 +168,13 @@ def global_to_body_velocity(v_global, psi):
     v_global = np.asarray(v_global, dtype=float)
 
     rotation = np.array([
-        [np.cos(psi),  np.sin(psi)],
+        [np.cos(psi), np.sin(psi)],
         [-np.sin(psi), np.cos(psi)]
     ])
 
     v_body = rotation @ v_global
     return v_body
+
 
 def estimate_velocity(p_t, p_prev, dt=0.032):
     """
@@ -187,6 +190,7 @@ def estimate_velocity(p_t, p_prev, dt=0.032):
 
     v = (p_t - p_prev) / dt
     return v
+
 
 def desired_pitch(v_ex, v_ex_dot, k_p_v=2.0, k_d_v=0.5):
     """
@@ -233,8 +237,6 @@ def altitude_thrust(e_z, integral_e_z, derivative_e_z, k_p_z=10.0, k_i_z=0.0, k_
     return k_p_z * e_z + k_i_z * integral_e_z + k_d_z * derivative_e_z + F_hover
 
 
-
-
 def control_u_phi(e_phi, e_phi_dot, k_p_phi, k_d_phi):
     """
     Equation 16 in paper.
@@ -270,6 +272,7 @@ def control_u_psi(e_psi, k_p_psi):
     :return: yaw control output u_psi
     """
     return k_p_psi * np.clip(e_psi, -1.0, 1.0)
+
 
 def motor_m1(F_z, u_phi, u_theta, u_psi):
     """
@@ -325,5 +328,3 @@ def motor_m4(F_z, u_phi, u_theta, u_psi):
     """
     m4 = F_z + u_phi + u_theta - u_psi
     return np.clip(m4, 0.0, 600.0)
-
-
