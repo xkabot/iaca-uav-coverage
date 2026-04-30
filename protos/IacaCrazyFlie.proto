@@ -5,6 +5,7 @@ PROTO IacaCrazyflie [
   field SFRotation rotation         0 0 1 0
   field SFString   name             "Crazyflie for IACA Coverage"
   field SFString   model            "Bitcraze's Crazyflie with Receiver"
+  field SFString   customData       ""
   field SFString   controller       "iaca_drone"
   field SFInt32    receiverChannel  10
 ]
@@ -198,6 +199,7 @@ PROTO IacaCrazyflie [
       }
     }
   ]
+  customData IS customData
   name IS name
   model IS model
   boundingObject Cylinder {

@@ -1,3 +1,5 @@
+import pickle
+
 from controller import Robot
 import json
 import math
@@ -10,10 +12,30 @@ from pid_controller import pid_velocity_fixed_height_controller
 
 current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
+config_path = os.path.abspath(os.path.join(current_dir, "..", "config"))
 sys.path.append(shared_path)
+sys.path.append(config_path)
 
 import equations as eq
-from drone_constants import *
+from drone_c import DroneConstants
+from shared_c import SharedConstants
+
+
+def load_config() -> dict:
+    cfg_file = os.path.join(config_path, "configs.json")
+    print(f"Drone reading: {cfg_file}")
+    with open(cfg_file, "r") as file:
+        return json.load(file)
+    
+def init_configs(cfg: dict, rng, experimenting=False) -> DroneConstants:
+    if experimenting:
+        shared = SharedConstants(cfg["shared"], rng)
+        drone = DroneConstants(shared, cfg["drone"])
+    else:
+        shared = SharedConstants(rng=rng)
+        drone = DroneConstants(shared)
+        
+    return drone
 
 
 def clamp_vector_norm(v, max_norm):
@@ -57,14 +79,28 @@ def sample_bounded_gaussian_wind(std, max_mag):
     :param max_mag: maximum wind magnitude
     :return: numpy array [wind_x, wind_y]
     """
-    wind = RNG.normal(loc=0.0, scale=std, size=2)
+    wind = cfg.rng.normal(loc=0.0, scale=std, size=2)
     return clamp_vector_norm(wind, max_mag)
 
 
-last_wind_update_time = 0
-wind_vector_world = sample_bounded_gaussian_wind(WIND_STD, WIND_MAX)
-
 robot = Robot()
+
+master_config = load_config()
+custom_data = robot.getCustomData() 
+rng_file, config_num = custom_data.split(',')
+config_num = int(config_num)
+experimenting = master_config["experimenting"]
+
+with open(rng_file, "rb") as f:
+    rng = pickle.load(f)
+
+current_config = master_config["configs"][config_num]
+cfg = init_configs(current_config, rng, experimenting)
+
+
+last_wind_update_time = 0
+wind_vector_world = sample_bounded_gaussian_wind(cfg.wind_std, cfg.wind_max)
+
 timestep = int(robot.getBasicTimeStep())
 
 # Motors
@@ -122,7 +158,7 @@ first_time = True
 # Drone state
 v_world = np.zeros(2, dtype=float)  # current filtered world-frame velocity
 yaw_desired = 0.0
-height_desired = FLYING_ATTITUDE
+height_desired = cfg.flying_altitude
 last_neighbors = {}  # most recent neighbor dict from supervisor
 startup = True
 
@@ -138,14 +174,14 @@ while robot.step(timestep) != -1:
         first_time = False
         continue
 
-    if current_time - last_wind_update_time >= WIND_UPDATE_PERIOD:
+    if current_time - last_wind_update_time >= cfg.wind_update_period:
         wind_vector_world = sample_bounded_gaussian_wind(
-            std=WIND_STD,
-            max_mag=WIND_MAX
+            std=cfg.wind_std,
+            max_mag=cfg.wind_max
         )
         last_wind_update_time = current_time
 
-        print(f"New wind vector: ({wind_vector_world[0]:.3f}, {wind_vector_world[1]:.3f})")
+        # print(f"New wind vector: ({wind_vector_world[0]:.3f}, {wind_vector_world[1]:.3f})")
 
     dt = current_time - past_time
     if dt <= 0.0:
@@ -189,15 +225,15 @@ while robot.step(timestep) != -1:
             neighbors=neighbors,
             drone_pos=drone_pos,
             v_old=v_world,
-            D_max=D_MAX
+            D_max=cfg.d_max
         )
 
         f_boundary = boundary_force(
             drone_pos,
-            WORLD_X_MIN, WORLD_X_MAX,
-            WORLD_Y_MIN, WORLD_Y_MAX,
-            margin=BOUNDARY_MARGIN,
-            strength=BOUNDARY_STRENGTH
+            cfg.world_x_min, cfg.world_x_max,
+            cfg.world_y_min, cfg.world_y_max,
+            margin=cfg.boundary_margin,
+            strength=cfg.boundary_strength
         )
         f_total = f_total + f_boundary
 
@@ -214,9 +250,9 @@ while robot.step(timestep) != -1:
                 # cos_angle = 1 means same direction, -1 means opposite
                 # Scale increment down to 20% when fully opposing, full when aligned
                 turn_scale = 0.2 + 0.8 * ((cos_angle + 1.0) / 2.0)
-                effective_delta = DELTA_V_MAX * turn_scale
+                effective_delta = cfg.delta_v_max * turn_scale
             else:
-                effective_delta = DELTA_V_MAX
+                effective_delta = cfg.delta_v_max
 
             v_new = eq.update_drone_velocity(
                 v_current=v_world,
@@ -226,12 +262,12 @@ while robot.step(timestep) != -1:
             v_world = eq.stability_aware_velocity_adjustment(
                 v_t_minus_1=v_world,
                 v_new=v_new,
-                alpha=ALPHA_VELOCITY
+                alpha=cfg.alpha_velocity
             )
-            v_world = clamp_vector_norm(v_world, MAX_WORLD_SPEED)
+            v_world = clamp_vector_norm(v_world, cfg.max_world_speed)
 
     v_effective_world = v_world + wind_vector_world
-    v_effective_world = clamp_vector_norm(v_effective_world, MAX_WORLD_SPEED)
+    v_effective_world = clamp_vector_norm(v_effective_world, cfg.max_world_speed)
 
     v_body = eq.global_to_body_velocity(v_effective_world, yaw)
     forward_desired = v_body[0]

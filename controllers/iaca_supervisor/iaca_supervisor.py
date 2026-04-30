@@ -1,3 +1,6 @@
+import pickle
+import subprocess
+
 from controller import Supervisor
 import json
 import math
@@ -7,10 +10,30 @@ import sys
 
 current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
+config_path = os.path.abspath(os.path.join(current_dir, "..", "config"))
 sys.path.append(shared_path)
+sys.path.append(config_path)
 
 import equations as eq
-from supervisor_constants import *
+from supervisor_c import SupervisorConstants
+from shared_c import SharedConstants
+
+
+def load_config() -> dict:
+    cfg_file = os.path.join(config_path, "configs.json")
+    print(f"Supervisor reading: {cfg_file}")
+    with open(cfg_file, "r") as file:
+        return json.load(file)
+    
+def init_configs(cfg: dict, rng, experimenting=False) -> SupervisorConstants:
+    if experimenting:
+        shared = SharedConstants(cfg["shared"], rng)
+        supervisor = SupervisorConstants(shared, cfg["supervisor"])
+    else:
+        shared = SharedConstants(rng=rng)
+        supervisor = SupervisorConstants(shared)
+        
+    return supervisor
 
 
 def clamp(value, value_min, value_max):
@@ -73,7 +96,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
 
     interior = noisy[1:-1, 1:-1]
     rel_noise_bound = noise_fraction * interior
-    noise = RNG.uniform(-1.0, 1.0, size=interior.shape) * rel_noise_bound
+    noise = cfg.rng.uniform(-1.0, 1.0, size=interior.shape) * rel_noise_bound
 
     mask = (interior > 0.0) & (interior < p_max)
     interior[mask] = np.clip(interior[mask] + noise[mask], 0.0, p_max)
@@ -132,7 +155,7 @@ def compute_priority_map(p_map, drone_grid_positions, epsilon):
     for row, col in drone_grid_positions:
         if 0 <= row < rows and 0 <= col < cols:
             priority_map[row, col] = 0.0
-
+    
     return priority_map
 
 
@@ -199,16 +222,26 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
 
         initial_z = spawn_height
 
+        sanitized_rng_path = rng_state_file.replace("\\", "/")
+        config_str = f"{sanitized_rng_path},{config_index}"
+
         drone_string = f"""
         DEF {drone_def} IacaCrazyflie {{
           translation {initial_x} {initial_y} {initial_z}
           controller "iaca_drone"
           receiverChannel {drone_channel}
+          customData "{config_str}"
         }}
         """
 
         children_field.importMFNodeFromString(-1, drone_string)
-        node = supervisor_robot.getFromDef(drone_def)
+        
+        # Immediately grab the last node added to the children field
+        # This is much faster and more reliable than searching by DEF name
+        node = children_field.getMFNode(-1)
+        
+        if node.getDef() != drone_def:
+            node = supervisor_robot.getFromDef(drone_def)
 
         if node is None:
             raise ValueError(f"Failed to create {drone_def}")
@@ -230,182 +263,242 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
 
     return drone_defs, drone_channels, translation_fields
 
-
 # get supervisor instance
 robot = Supervisor()
 
-# add the drones to the webots area and set their initial positions
-drone_defs, drone_channels, translation_fields = initalize_drones(robot, NUMBER_OF_DRONES)
+# retrieve the config (contains run info and constants)
+master_config = load_config()
+configs = master_config["configs"]
+experimenting = master_config["experimenting"]
 
-timestep = int(robot.getBasicTimeStep())
-dt = timestep / 1000.0
+# Define the random number generator
+rng = np.random.default_rng(master_config["seed"])
+rng_state_file = os.path.join(config_path, master_config["rng_state_file"])
 
-emitter = robot.getDevice("cmd_emitter")
+output_path = os.path.join(current_dir, master_config["output_path"])
 
-pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
-observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
-priority_map = np.zeros((GRID_ROWS, GRID_COLS), dtype=float)
+# Run once if experiments are not being simulated
+if experimenting:
+    num_sims = master_config["num_sims"]
+    num_configs = len(master_config["configs"])
+else:
+    num_sims, num_configs = 1, 1
 
-# Numpy RNG
-rng = np.random.default_rng(SEED)
+# Store coverage data
+coverages = {}
+coverage_file = os.path.join(config_path, "coverage.json")
 
-paths = {drone_def: [] for drone_def in drone_defs}
-coverage_history = []
-pheromone_snapshots = []
-priority_snapshots = []
-snapshot_steps = []
-snapshot_times = []
+for config_index, config_data in enumerate(configs):
+    if experimenting:
+        cfg = init_configs(master_config["configs"][config_index], rng, experimenting)
+        cfg_name = master_config["configs"][config_index].get("name", f"run_{config_index + 1}")
+    else:
+        cfg = init_configs({}, rng)
+        cfg_name = "single_run"
+        
+    print(f"Now testing {cfg_name}...")
+        
+    coverage_sum = 0
+    for sim in range(num_sims):    
+        # Save the configs and rng state
+        with open(rng_state_file, "wb") as f:
+            pickle.dump(rng, f)
+        
+        # add the drones to the webots area and set their initial positions
+        drone_defs, drone_channels, translation_fields = initalize_drones(robot, cfg.number_of_drones)
 
-step_count = 0
+        timestep = int(robot.getBasicTimeStep())
+        dt = timestep / 1000.0
 
-print("IACA supervisor started")
-while robot.step(timestep) != -1:
-    current_time = robot.getTime()
-    step_count += 1
+        emitter = robot.getDevice("cmd_emitter")
 
-    is_supervisor_step = (step_count % SUPERVISOR_STEP_SIZE == 0)
-    is_save_step = (step_count % SAVE_MAPS_INTERVAL == 0)
-    is_final_step = (step_count >= MAX_STEPS)
+        pheromone_map = build_border_decay_pheromone_map(cfg.grid_rows, cfg.grid_cols, cfg.p_max, cfg.lam)
+        observed_mask = np.zeros((cfg.grid_rows, cfg.grid_cols), dtype=bool)
+        priority_map = np.zeros((cfg.grid_rows, cfg.grid_cols), dtype=float)
 
-    drone_states = {}
-    drone_grid_positions = []
+        paths = {drone_def: [] for drone_def in drone_defs}
+        coverage_history = []
+        pheromone_snapshots = []
+        priority_snapshots = []
+        snapshot_steps = []
+        snapshot_times = []
 
-    for drone_def in drone_defs:
-        pos = translation_fields[drone_def].getSFVec3f()
-        x = pos[0]
-        y = pos[1]
-        z = pos[2]
+        step_count = 0
 
-        grid_row, grid_col = world_to_grid(
-            x=x,
-            y=y,
-            x_min=WORLD_X_MIN,
-            x_max=WORLD_X_MAX,
-            y_min=WORLD_Y_MIN,
-            y_max=WORLD_Y_MAX,
-            rows=GRID_ROWS,
-            cols=GRID_COLS
-        )
+        print("IACA supervisor started")
+        while robot.step(timestep) != -1:
+            current_time = robot.getTime()
+            step_count += 1
 
-        drone_states[drone_def] = {
-            "x": x,
-            "y": y,
-            "z": z,
-            "grid_row": grid_row,
-            "grid_col": grid_col,
-        }
+            is_supervisor_step = (step_count % cfg.supervisor_step_size == 0)
+            is_save_step = (step_count % cfg.save_maps_interval == 0)
+            is_final_step = (step_count >= cfg.max_steps)
 
-        drone_grid_positions.append((grid_row, grid_col))
-        paths[drone_def].append((x, y))
+            drone_states = {}
+            drone_grid_positions = []
 
-        mark_observed_cells(observed_mask, grid_row, grid_col, SENSOR_RADIUS_CELLS)
+            for drone_def in drone_defs:
+                pos = translation_fields[drone_def].getSFVec3f()
+                x = pos[0]
+                y = pos[1]
+                z = pos[2]
 
-    # Pheromone/priority only update on supervisor cadence, never because of a save
-    if is_supervisor_step or is_final_step:
-        pheromone_map = update_pheromone_map(
-            p_map=pheromone_map,
-            drone_grid_positions=drone_grid_positions,
-            p_max=P_MAX,
-            alpha_pheromone=ALPHA_PHEROMONE,
-            lam=LAMBDA,
-            noise_fraction=0.05
-        )
-        priority_map = compute_priority_map(
-            p_map=pheromone_map,
-            drone_grid_positions=drone_grid_positions,
-            epsilon=EPSILON
-        )
+                grid_row, grid_col = world_to_grid(
+                    x=x,
+                    y=y,
+                    x_min=cfg.world_x_min,
+                    x_max=cfg.world_x_max,
+                    y_min=cfg.world_y_min,
+                    y_max=cfg.world_y_max,
+                    rows=cfg.grid_rows,
+                    cols=cfg.grid_cols
+                )
 
-    if is_save_step or is_final_step:
-        pheromone_snapshots.append(pheromone_map.copy().astype(np.float32))
-        priority_snapshots.append(priority_map.copy().astype(np.float32))
-        snapshot_steps.append(step_count)
-        snapshot_times.append(current_time)
-
-    # Command sending also independent
-    if is_supervisor_step or is_final_step:
-        for drone_def in drone_defs:
-            state = drone_states[drone_def]
-            row = state["grid_row"]
-            col = state["grid_col"]
-
-            if current_time < STARTUP_HOVER_TIME:
-                # During startup just send hover with empty neighbors
-                command = {
-                    "neighbors": {},
-                    "drone_row": row,
-                    "drone_col": col,
-                    "yaw_desired": 0.0,
-                    "height_desired": HEIGHT_DESIRED,
-                    "startup": True,
+                drone_states[drone_def] = {
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "grid_row": grid_row,
+                    "grid_col": grid_col,
                 }
-            else:
-                neighbor_cells = get_neighbor_cells(row, col, GRID_ROWS, GRID_COLS)
-                neighbor_priorities = {}
-                for n_row, n_col in neighbor_cells:
-                    # Convert grid position to world coords so drone can compute r_k
-                    world_x, world_y = grid_to_world(
-                        row=n_row,
-                        col=n_col,
-                        x_min=WORLD_X_MIN,
-                        x_max=WORLD_X_MAX,
-                        y_min=WORLD_Y_MIN,
-                        y_max=WORLD_Y_MAX,
-                        rows=GRID_ROWS,
-                        cols=GRID_COLS
-                    )
-                    key = f"{n_row},{n_col}"
-                    neighbor_priorities[key] = {
-                        "q": float(priority_map[n_row, n_col]),
-                        "wx": world_x,
-                        "wy": world_y,
+
+                drone_grid_positions.append((grid_row, grid_col))
+                paths[drone_def].append((x, y))
+
+                mark_observed_cells(observed_mask, grid_row, grid_col, cfg.sensor_radius_cells)
+
+            # Pheromone/priority only update on supervisor cadence, never because of a save
+            if is_supervisor_step or is_final_step:
+                pheromone_map = update_pheromone_map(
+                    p_map=pheromone_map,
+                    drone_grid_positions=drone_grid_positions,
+                    p_max=cfg.p_max,
+                    alpha_pheromone=cfg.alpha_pheromone,
+                    lam=cfg.lam,
+                    noise_fraction=0.05
+                )
+                priority_map = compute_priority_map(
+                    p_map=pheromone_map,
+                    drone_grid_positions=drone_grid_positions,
+                    epsilon=cfg.epsilon
+                )
+
+            if is_save_step or is_final_step:
+                pheromone_snapshots.append(pheromone_map.copy().astype(np.float32))
+                priority_snapshots.append(priority_map.copy().astype(np.float32))
+                snapshot_steps.append(step_count)
+                snapshot_times.append(current_time)
+
+            # Command sending also independent
+            if is_supervisor_step or is_final_step:
+                for drone_def in drone_defs:
+                    state = drone_states[drone_def]
+                    row = state["grid_row"]
+                    col = state["grid_col"]
+
+                    if current_time < cfg.startup_hover_time:
+                        # During startup just send hover with empty neighbors
+                        command = {
+                            "neighbors": {},
+                            "drone_row": row,
+                            "drone_col": col,
+                            "yaw_desired": 0.0,
+                            "height_desired": cfg.height_desired,
+                            "startup": True,
+                        }
+                    else:
+                        neighbor_cells = get_neighbor_cells(row, col, cfg.grid_rows, cfg.grid_cols)
+                        neighbor_priorities = {}
+                        for n_row, n_col in neighbor_cells:
+                            # Convert grid position to world coords so drone can compute r_k
+                            world_x, world_y = grid_to_world(
+                                row=n_row,
+                                col=n_col,
+                                x_min=cfg.world_x_min,
+                                x_max=cfg.world_x_max,
+                                y_min=cfg.world_y_min,
+                                y_max=cfg.world_y_max,
+                                rows=cfg.grid_rows,
+                                cols=cfg.grid_cols
+                            )
+                            key = f"{n_row},{n_col}"
+                            neighbor_priorities[key] = {
+                                "q": float(priority_map[n_row, n_col]),
+                                "wx": world_x,
+                                "wy": world_y,
+                            }
+
+                        command = {
+                            "neighbors": neighbor_priorities,
+                            "drone_row": row,
+                            "drone_col": col,
+                            "yaw_desired": 0.0,
+                            "height_desired": cfg.height_desired,
+                            "startup": False,
+                        }
+
+                    emitter.setChannel(drone_channels[drone_def])
+                    payload = json.dumps(command).encode("utf-8")
+                    emitter.send(payload)
+
+                coverage = get_coverage_percent(observed_mask)
+                coverage_history.append(coverage)
+
+                if step_count % cfg.print_interval == 0:
+                    print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
+
+            if is_final_step:
+                if sim == 0:
+                    tmp_path = output_path + ".tmp.npz"
+                    out_path = output_path + ".npz"
+
+                    save_data = {
+                        "world_x_min": cfg.world_x_min,
+                        "world_x_max": cfg.world_x_max,
+                        "world_y_min": cfg.world_y_min,
+                        "world_y_max": cfg.world_y_max,
+                        "grid_rows": cfg.grid_rows,
+                        "grid_cols": cfg.grid_cols,
+                        "coverage_history": np.array(coverage_history, dtype=np.float32),
+                        "snapshot_steps": np.array(snapshot_steps, dtype=np.int32),
+                        "snapshot_times": np.array(snapshot_times, dtype=np.float32),
+                        "pheromone_snapshots": np.stack(pheromone_snapshots).astype(np.float32) if len(
+                            pheromone_snapshots) > 0 else np.empty((0, cfg.grid_rows, cfg.grid_cols), dtype=np.float32),
+                        "priority_snapshots": np.stack(priority_snapshots).astype(np.float32) if len(
+                            priority_snapshots) > 0 else np.empty((0, cfg.grid_rows, cfg.grid_cols), dtype=np.float32),
                     }
 
-                command = {
-                    "neighbors": neighbor_priorities,
-                    "drone_row": row,
-                    "drone_col": col,
-                    "yaw_desired": 0.0,
-                    "height_desired": HEIGHT_DESIRED,
-                    "startup": False,
-                }
+                    for drone_def in drone_defs:
+                        save_data[f"{drone_def.lower()}_path"] = np.array(paths[drone_def], dtype=np.float32)
 
-            emitter.setChannel(drone_channels[drone_def])
-            payload = json.dumps(command).encode("utf-8")
-            emitter.send(payload)
+                    np.savez_compressed(tmp_path, **save_data)
+                    os.replace(tmp_path, out_path)
+                    print(f"Saved run output to: {output_path}")
+                    
+                if step_count >= cfg.max_steps:
+                    print(f"Sim {sim} finished. Final coverage: {coverage:.2f}%")
+                    break
+                
+        coverage_sum += coverage_history[-1]
 
-        coverage = get_coverage_percent(observed_mask)
-        coverage_history.append(coverage)
+        if experimenting:
+            for drone_def in drone_defs:
+                node = robot.getFromDef(drone_def)
+                if node:
+                    node.remove()
 
-        if step_count % PRINT_INTERVAL == 0:
-            print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
+            robot.simulationReset()
+            
+            if robot.step(timestep) == -1:
+                print("Webots closed. Exiting.")
+                sys.exit()
+                
+            
+    coverages[cfg_name] = round(coverage_sum / num_sims, 3)
 
-    if is_final_step:
-        output_dir = os.path.dirname(__file__)
-        temp_path = os.path.join(output_dir, "iaca_run_output.tmp.npz")
-        output_path = os.path.join(output_dir, "iaca_run_output.npz")
-
-        save_data = {
-            "world_x_min": WORLD_X_MIN,
-            "world_x_max": WORLD_X_MAX,
-            "world_y_min": WORLD_Y_MIN,
-            "world_y_max": WORLD_Y_MAX,
-            "grid_rows": GRID_ROWS,
-            "grid_cols": GRID_COLS,
-            "coverage_history": np.array(coverage_history, dtype=np.float32),
-            "snapshot_steps": np.array(snapshot_steps, dtype=np.int32),
-            "snapshot_times": np.array(snapshot_times, dtype=np.float32),
-            "pheromone_snapshots": np.stack(pheromone_snapshots).astype(np.float32) if len(
-                pheromone_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
-            "priority_snapshots": np.stack(priority_snapshots).astype(np.float32) if len(
-                priority_snapshots) > 0 else np.empty((0, GRID_ROWS, GRID_COLS), dtype=np.float32),
-        }
-
-        for drone_def in drone_defs:
-            save_data[f"{drone_def.lower()}_path"] = np.array(paths[drone_def], dtype=np.float32)
-
-        np.savez_compressed(temp_path, **save_data)
-        os.replace(temp_path, output_path)
-
-        print(f"Saved run output to: {output_path}")
-        robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
+print("\nFinished all simulations!")
+robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
+    
+with open(coverage_file, "w") as out:
+    json.dump(coverages, out)
+            
