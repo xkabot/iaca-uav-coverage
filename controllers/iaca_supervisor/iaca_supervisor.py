@@ -179,7 +179,7 @@ def get_coverage_percent(observed_mask):
     return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
 
 
-def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spawn_height=0.5):
+def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=SPAWN_RADIUS, spawn_height=0.5):
     root_node = supervisor_robot.getRoot()
     children_field = root_node.getField("children")
     drone_defs = []
