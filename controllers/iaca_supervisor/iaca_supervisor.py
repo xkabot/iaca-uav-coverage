@@ -192,16 +192,19 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
         if number_of_drones == 1:
             initial_x = 0.0
             initial_y = 0.0
+            yaw_angle = 0.0
         else:
             angle = 2.0 * math.pi * i / number_of_drones
             initial_x = spawn_radius * math.cos(angle)
             initial_y = spawn_radius * math.sin(angle)
+            yaw_angle = angle
 
         initial_z = spawn_height
 
         drone_string = f"""
         DEF {drone_def} IacaCrazyflie {{
           translation {initial_x} {initial_y} {initial_z}
+          rotation 0 0 1 {yaw_angle}
           controller "iaca_drone"
           receiverChannel {drone_channel}
         }}
