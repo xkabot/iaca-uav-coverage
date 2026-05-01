@@ -21,6 +21,8 @@ Travis - 04/30/2026
 
 #### Main thing: Added support for non-rectangular areas, or otherwise areas to be avoided
 
+#### Also updated the plotting script to show past edge of map to see how far the drones are going out of bounds. This can be seen below all the exclusion stuff V
+
 So I added support to take an exclusion bitmap as input, which is just a 2d area of the same size as the grid, where `1`'s represent that drones should avoid this area.
 By adding this to the supervisor, the drones will now avoid flying over these areas, and they will also not be considered when calculating coverage, as the drones aren't expected to go there.
 For all intents and purposes, these areas are treated the same as going out of bounds, so the drones will turn around and try to go back towards the closest "in-bounds" position they know of, which is the same as how they react to going off the edge of the designated coverage area.
@@ -44,6 +46,12 @@ always being set to max pheromone and minimum priority, along with a border forc
 
 <img src="pics/v4/exclusion-priority.png" alt="priority map in test with exclusion area" width="800"/>
 
+
+
+Okay, so for the plotting with past edge of map, here is an example at the full size, where you can clearly see that the drones 
+are barely (if at all) going out of bounds before turning around, which was a massive problem in the original paper.
+
+<img src="pics/v4/full_size_paths.png" alt="paths of drones with past edge of map shown" width="800"/>
 
 ## v4
 Travis - 04/23/2026
