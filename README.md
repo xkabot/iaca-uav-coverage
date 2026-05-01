@@ -35,18 +35,20 @@ a test run with the exclusion area being used to form the map into a diamond sha
 
 As seen below, it does an extremely good job of staying out of the red exclusion area.
 
-<img src="pics/v4/exclusion-paths.png" alt="paths of drones in test with exclusion area" width="800"/>
+<img src="pics/v4/exclusion-outside-paths.png" alt="paths of drones in test with exclusion area near edge" width="800"/>
 
 
 As seen from the pheromone and priority maps, this exclusion zone is mainly done by having the area marked as excluded (from the input bitmap)
 always being set to max pheromone and minimum priority, along with a border force similar to the one used for the edge of map, which pushes the drones away from the area and back towards in-operations area.
 
-<img src="pics/v4/exclusion-pheromone.png" alt="pheromone map in test with exclusion area" width="800"/>
+<img src="pics/v4/exclusion-outside-pheromone.png" alt="pheromone map in test with exclusion area near edge" width="800"/>
 
 
-<img src="pics/v4/exclusion-priority.png" alt="priority map in test with exclusion area" width="800"/>
+<img src="pics/v4/exclusion-outside-priority.png" alt="priority map in test with exclusion area near edge" width="800"/>
 
+And here is an example of the middle being excluded. It does a great job of staying out of the middle (except at startup obviously because they start in the middle, but even then they head straight out without lingering).
 
+<img src="pics/v4/exclusion-middle-paths.png" alt="paths of drones in test with exclusion area in middle" width="800"/>
 
 Okay, so for the plotting with past edge of map, here is an example at the full size, where you can clearly see that the drones 
 are barely (if at all) going out of bounds before turning around, which was a massive problem in the original paper.
