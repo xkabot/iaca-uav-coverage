@@ -43,6 +43,7 @@ NUMBER_OF_DRONES = sc.NUMBER_OF_DRONES
 USE_EXCLUSION = sc.USE_EXCLUSION
 EXCLUSION_MARGIN_CELLS = 15
 
+
 def make_exclusion_mask():
     # Use to create a boolean mask of shape (GRID_ROWS, GRID_COLS) where True indicates excluded areas, this is for manual creation,
     # but could very easily create like a visual creator if wanted.

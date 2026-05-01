@@ -9,14 +9,6 @@ import shared_constants as sc
 SEED = sc.SEED
 RNG = sc.RNG
 
-## Known working values
-# DELTA_V_MAX = 0.05
-# ALPHA_VELOCITY = 0.92
-# MAX_WORLD_SPEED = 1.0
-# BOUNDARY_STRENGTH = 0.5
-# BOUNDARY_MARGIN = 4.0
-
-## Unknown values im testing to try and improve drone speed / turning
 BOUNDARY_STRENGTH = .9
 BOUNDARY_MARGIN = 10.0
 

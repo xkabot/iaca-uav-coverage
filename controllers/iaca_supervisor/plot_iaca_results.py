@@ -9,6 +9,7 @@ BACKGROUND_IMG = mpimg.imread(BACKGROUND_IMG_PATH)
 
 BUFFER = 100.0
 
+
 def load_data(path):
     return np.load(path)
 
@@ -25,6 +26,7 @@ def draw_background(ax, img, bounds):
         origin="upper"
     )
 
+
 def expand_bounds(bounds, buffer):
     return {
         "x_min": bounds["x_min"] - buffer,
@@ -32,6 +34,7 @@ def expand_bounds(bounds, buffer):
         "y_min": bounds["y_min"] - buffer,
         "y_max": bounds["y_max"] + buffer,
     }
+
 
 def plot_coverage(coverage_history):
     x = [i * SUPERVISOR_STEP_SIZE for i in range(len(coverage_history))]
@@ -99,6 +102,7 @@ def plot_paths(data, exclusion_mask=None):
     ax.grid()
     plt.show()
 
+
 def plot_heatmap(matrix, title, base_bounds):
     fig, ax = plt.subplots()
     ax.set_facecolor("white")
@@ -164,6 +168,7 @@ def plot_maps(data, snapshot_index=-1):
         f"Priority Map (snapshot {snapshot_index})",
         bounds
     )
+
 
 def plot_everything(npz_path, snapshot_index=-1):
     data = load_data(npz_path)

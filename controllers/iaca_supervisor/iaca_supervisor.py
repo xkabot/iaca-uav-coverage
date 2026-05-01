@@ -183,6 +183,7 @@ def mark_observed_cells(observed_mask, center_row, center_col, radius):
             if d_row * d_row + d_col * d_col <= r_sq:
                 observed_mask[row, col] = True
 
+
 def get_coverage_percent(observed_mask, exclusion_mask=None):
     if not USE_EXCLUSION:
         return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
@@ -268,7 +269,7 @@ def build_exclusion_gradient(exclusion_mask, rows, cols, margin_cells=10):
     grad_row = indices_to_nearest_safe[0] - R
     grad_col = indices_to_nearest_safe[1] - C
 
-    mag = np.sqrt(grad_row**2 + grad_col**2)
+    mag = np.sqrt(grad_row ** 2 + grad_col ** 2)
     mag = np.where(mag < 1e-6, 1.0, mag)
     grad_row = grad_row / mag
     grad_col = grad_col / mag
@@ -309,7 +310,6 @@ emitter = robot.getDevice("cmd_emitter")
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 priority_map = np.zeros((GRID_ROWS, GRID_COLS), dtype=float)
-
 
 if USE_EXCLUSION:
     print("Using exclusion zones - drones will avoid areas marked in the exclusion mask")
