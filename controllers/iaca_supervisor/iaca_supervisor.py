@@ -20,16 +20,23 @@ from shared_c import SharedConstants
 
 
 def load_config() -> dict:
+    """Loads a config from a json file."""
+    
     cfg_file = os.path.join(config_path, "configs.json")
     print(f"Supervisor reading: {cfg_file}")
     with open(cfg_file, "r") as file:
         return json.load(file)
     
 def init_configs(cfg: dict, rng, experimenting=False) -> SupervisorConstants:
+    """Initializes a `SupervisorConstants` instance, which contains the values provided
+    by `cfg`. Any values not present in `cfg` will contain their default values defined
+    in `SupervisorConstants` and `SharedConstants`."""
+    
     if experimenting:
         shared = SharedConstants(cfg["shared"], rng)
         supervisor = SupervisorConstants(shared, cfg["supervisor"])
     else:
+        # If not experimenting, just initialize with default values.
         shared = SharedConstants(rng=rng)
         supervisor = SupervisorConstants(shared)
         
@@ -266,15 +273,16 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
 # get supervisor instance
 robot = Supervisor()
 
-# retrieve the config (contains run info and constants)
+# Retrieve the entire config (contains run configs and constants)
 master_config = load_config()
-configs = master_config["configs"]
-experimenting = master_config["experimenting"]
+configs = master_config.get("configs", [{}])
+experimenting = master_config.get("experimenting", False)
 
 # Define the random number generator
 rng = np.random.default_rng(master_config["seed"])
 rng_state_file = os.path.join(config_path, master_config["rng_state_file"])
 
+# Defines the output for the first simulation results
 output_path = os.path.join(current_dir, master_config["output_path"])
 
 # Run once if experiments are not being simulated
@@ -288,6 +296,7 @@ else:
 coverages = {}
 coverage_file = os.path.join(config_path, "coverage.json")
 
+# Test each configuration to simulate, execute a standard run if experimenting is False
 for config_index, config_data in enumerate(configs):
     if experimenting:
         cfg = init_configs(master_config["configs"][config_index], rng, experimenting)
@@ -298,9 +307,10 @@ for config_index, config_data in enumerate(configs):
         
     print(f"Now testing {cfg_name}...")
         
+    # Store the total coverage across all simulations
     coverage_sum = 0
     for sim in range(num_sims):    
-        # Save the configs and rng state
+        # Save the state of the rng generator, ensures stochastic results between sims
         with open(rng_state_file, "wb") as f:
             pickle.dump(rng, f)
         
@@ -448,6 +458,7 @@ for config_index, config_data in enumerate(configs):
                     print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
 
             if is_final_step:
+                # Only save key results of the first simulation
                 if sim == 0:
                     tmp_path = output_path + ".tmp.npz"
                     out_path = output_path + ".npz"
@@ -474,13 +485,16 @@ for config_index, config_data in enumerate(configs):
                     np.savez_compressed(tmp_path, **save_data)
                     os.replace(tmp_path, out_path)
                     print(f"Saved run output to: {output_path}")
-                    
+                
+                # Move onto next simulation, or end program
                 if step_count >= cfg.max_steps:
                     print(f"Sim {sim} finished. Final coverage: {coverage:.2f}%")
                     break
-                
+        
+        # Add the final coverage value to sum for config simulation
         coverage_sum += coverage_history[-1]
 
+        # If experiments are being ran, remove the drones and reset simulation
         if experimenting:
             for drone_def in drone_defs:
                 node = robot.getFromDef(drone_def)
@@ -493,12 +507,14 @@ for config_index, config_data in enumerate(configs):
                 print("Webots closed. Exiting.")
                 sys.exit()
                 
-            
+    # After all simulations are complete, average the coverage
     coverages[cfg_name] = round(coverage_sum / num_sims, 3)
 
+
+# Pause and save the coverage results
 print("\nFinished all simulations!")
 robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
-    
+
 with open(coverage_file, "w") as out:
     json.dump(coverages, out)
             

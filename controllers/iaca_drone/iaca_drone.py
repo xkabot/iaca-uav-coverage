@@ -1,12 +1,9 @@
-import pickle
-
 from controller import Robot
 import json
-import math
 import numpy as np
 import os
 import sys
-from math import cos, sin
+import pickle
 
 from pid_controller import pid_velocity_fixed_height_controller
 
@@ -22,16 +19,23 @@ from shared_c import SharedConstants
 
 
 def load_config() -> dict:
+    """Loads a config from a json file."""
+    
     cfg_file = os.path.join(config_path, "configs.json")
-    print(f"Drone reading: {cfg_file}")
+    # print(f"Drone reading: {cfg_file}")
     with open(cfg_file, "r") as file:
         return json.load(file)
     
 def init_configs(cfg: dict, rng, experimenting=False) -> DroneConstants:
+    """Initializes a `DroneConstants` instance, which contains the values provided
+    by `cfg`. Any values not present in `cfg` will contain their default values defined
+    in `DroneConstants` and `SharedConstants`."""
+    
     if experimenting:
         shared = SharedConstants(cfg["shared"], rng)
         drone = DroneConstants(shared, cfg["drone"])
     else:
+        # If not experimenting, just initialize with default values.
         shared = SharedConstants(rng=rng)
         drone = DroneConstants(shared)
         
@@ -85,18 +89,26 @@ def sample_bounded_gaussian_wind(std, max_mag):
 
 robot = Robot()
 
+# Load the master config from the specified file in load_config
 master_config = load_config()
+
+# IacaCrazyFile.proto contains a field where we can store the simulation counter 
+# and file path where the numpy rng state is stored.
 custom_data = robot.getCustomData() 
 rng_file, config_num = custom_data.split(',')
 config_num = int(config_num)
+
+# If experiments are not being ran, use default constants; otherwise, initialize
+# parameters to the current config in the experiment process.
 experimenting = master_config["experimenting"]
 
+# Deserialize the rng state
 with open(rng_file, "rb") as f:
     rng = pickle.load(f)
 
+# Initialize the drone constants
 current_config = master_config["configs"][config_num]
 cfg = init_configs(current_config, rng, experimenting)
-
 
 last_wind_update_time = 0
 wind_vector_world = sample_bounded_gaussian_wind(cfg.wind_std, cfg.wind_max)

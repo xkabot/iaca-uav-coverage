@@ -2,15 +2,16 @@ import numpy as np
 
 
 class SharedConstants:
-    """SharedConstants is a class that contains constants that are shared across all controllers."""
+    """Contains constants that are shared across both the supervisor and drones."""
     seed = 2000
     
-    tick_rate_ms = 32
-    tick_rate_sec = tick_rate_ms / 1000
+    tick_rate_ms = 32  # Each Webots simulation step is 32ms
+    tick_rate_sec = tick_rate_ms / 1000  # Seconds per simulation step
     
     max_steps = 100000
     height_desired = 2.0
     
+    # In meters from the center of the grid
     world_x_min = -350.0
     world_x_max = 350.0
     world_y_min = -350.0
@@ -30,10 +31,12 @@ class SharedConstants:
     number_of_drones = 4                                   
     
     def __init__(self, config: dict={}, rng=None):
+        # Set the values contained in a dictionary if provided
         for key, value in config.items():
             if value is not None:
                 setattr(self, key, value)
-                
+        
+        # If a numpy rng generator is not provided, initialize one
         if rng is None:
             self.rng = np.random.default_rng(self.seed)
         else:
