@@ -297,7 +297,7 @@ coverages = {}
 coverage_file = os.path.join(config_path, "coverage.json")
 
 # Test each configuration to simulate, execute a standard run if experimenting is False
-for config_index, config_data in enumerate(configs):
+for config_index in range(num_configs):
     if experimenting:
         cfg = init_configs(master_config["configs"][config_index], rng, experimenting)
         cfg_name = master_config["configs"][config_index].get("name", f"run_{config_index + 1}")
