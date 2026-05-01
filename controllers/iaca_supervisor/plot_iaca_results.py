@@ -45,7 +45,7 @@ def plot_coverage(coverage_history):
     plt.show()
 
 
-def plot_paths(data):
+def plot_paths(data, exclusion_mask=None):
     base_bounds = {
         "x_min": float(data["world_x_min"]),
         "x_max": float(data["world_x_max"]),
@@ -57,8 +57,23 @@ def plot_paths(data):
 
     fig, ax = plt.subplots()
     ax.set_facecolor("white")
-    # Background
     draw_background(ax, BACKGROUND_IMG, base_bounds)
+
+    # Draw exclusion zones as a partially transparent red overlay
+    if exclusion_mask is not None:
+        overlay = np.zeros((*exclusion_mask.shape, 4), dtype=float)
+        overlay[exclusion_mask] = [1.0, 0.0, 0.0, 0.4]  # red, 40% opacity
+        ax.imshow(
+            overlay,
+            origin="lower",
+            extent=[
+                base_bounds["x_min"],
+                base_bounds["x_max"],
+                base_bounds["y_min"],
+                base_bounds["y_max"],
+            ],
+            interpolation="nearest"
+        )
 
     for i in range(NUMBER_OF_DRONES):
         key = f"drone{i}_path"
@@ -70,27 +85,19 @@ def plot_paths(data):
         xs = path[:, 0]
         ys = path[:, 1]
 
-        # Path
         ax.plot(xs, ys, label=f"DRONE{i}", alpha=0.7)
-
-        # Start
         ax.plot(xs[0], ys[0], 'go', markersize=6)
-
-        # End
         ax.plot(xs[-1], ys[-1], 'rx', markersize=8, markeredgewidth=2)
 
     ax.set_xlim(bounds["x_min"], bounds["x_max"])
     ax.set_ylim(bounds["y_min"], bounds["y_max"])
-
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_title("Drone Paths (Start = green, End = red X)")
     ax.legend()
     ax.set_aspect("equal", adjustable="box")
     ax.grid()
-
     plt.show()
-
 
 def plot_heatmap(matrix, title, base_bounds):
     fig, ax = plt.subplots()
@@ -165,8 +172,13 @@ def plot_everything(npz_path, snapshot_index=-1):
 
     print(f"Final coverage: {coverage_history[-1]:.2f}%")
 
+    if USE_EXCLUSION:
+        exclusion_mask = make_exclusion_mask()
+    else:
+        exclusion_mask = None
+
     plot_coverage(coverage_history)
-    plot_paths(data)
+    plot_paths(data, exclusion_mask=exclusion_mask)
     plot_maps(data, snapshot_index)
 
 

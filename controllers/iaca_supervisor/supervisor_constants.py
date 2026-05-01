@@ -1,4 +1,5 @@
 import os, sys
+import numpy as np
 
 current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
@@ -37,3 +38,18 @@ SUPERVISOR_STEP_SIZE = 15
 # Drone spawning parameters
 SPAWN_RADIUS = 20.0
 NUMBER_OF_DRONES = sc.NUMBER_OF_DRONES
+
+# Exclusion zone parameters
+USE_EXCLUSION = sc.USE_EXCLUSION
+EXCLUSION_MARGIN_CELLS = 15
+
+def make_exclusion_mask():
+    # Use to create a boolean mask of shape (GRID_ROWS, GRID_COLS) where True indicates excluded areas, this is for manual creation,
+    # but could very easily create like a visual creator if wanted.
+    j_idx = np.arange(GRID_COLS)
+    i_idx = np.arange(GRID_ROWS)
+    X = WORLD_X_MIN + j_idx * (WORLD_X_MAX - WORLD_X_MIN) / (GRID_COLS - 1)
+    Y = WORLD_Y_MIN + i_idx * (WORLD_Y_MAX - WORLD_Y_MIN) / (GRID_ROWS - 1)
+    XX, YY = np.meshgrid(X, Y)  # shape (rows, cols)
+    mask = np.abs(XX) + np.abs(YY) > 500
+    return mask
