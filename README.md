@@ -16,6 +16,35 @@
 
 *For reference, each step is 32ms, so 15k steps is 8 minutes of simulated flight; 100k steps is 53 minutes of simulated flight.
 
+## v4.2
+Travis - 04/30/2026
+
+#### Main thing: Added support for non-rectangular areas, or otherwise areas to be avoided
+
+So I added support to take an exclusion bitmap as input, which is just a 2d area of the same size as the grid, where `1`'s represent that drones should avoid this area.
+By adding this to the supervisor, the drones will now avoid flying over these areas, and they will also not be considered when calculating coverage, as the drones aren't expected to go there.
+For all intents and purposes, these areas are treated the same as going out of bounds, so the drones will turn around and try to go back towards the closest "in-bounds" position they know of, which is the same as how they react to going off the edge of the designated coverage area.
+
+My main motivation for this was that not all areas that we want to cover are going to be a perfect rectangular shape, so 
+doing this allows up to avoid having the drones waste time flying over areas that we don't care about, and also allows us to test the algorithm's ability to handle more complex shaped areas.
+
+I added a few more weights to support this, and also added visuals for exclusion areas should they exist. Here is an example of 
+a test run with the exclusion area being used to form the map into a diamond shape (created with `exclusion_bitmap = abs(x) + abs(y) > 500`).
+
+As seen below, it does an extremely good job of staying out of the red exclusion area.
+
+<img src="pics/v4/exclusion-paths.png" alt="paths of drones in test with exclusion area" width="800"/>
+
+
+As seen from the pheromone and priority maps, this exclusion zone is mainly done by having the area marked as excluded (from the input bitmap)
+always being set to max pheromone and minimum priority, along with a border force similar to the one used for the edge of map, which pushes the drones away from the area and back towards in-operations area.
+
+<img src="pics/v4/exclusion-pheromone.png" alt="pheromone map in test with exclusion area" width="800"/>
+
+
+<img src="pics/v4/exclusion-priority.png" alt="priority map in test with exclusion area" width="800"/>
+
+
 ## v4
 Travis - 04/23/2026
 

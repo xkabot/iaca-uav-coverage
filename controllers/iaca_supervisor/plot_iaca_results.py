@@ -1,11 +1,39 @@
 import numpy as np
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
 from supervisor_constants import *
 
+BACKGROUND_IMG_PATH = "../../pics/background.png"
+BACKGROUND_IMG = mpimg.imread(BACKGROUND_IMG_PATH)
+
+BUFFER = 100.0
+
 
 def load_data(path):
     return np.load(path)
+
+
+def draw_background(ax, img, bounds):
+    ax.imshow(
+        img,
+        extent=[
+            bounds["x_min"],
+            bounds["x_max"],
+            bounds["y_min"],
+            bounds["y_max"],
+        ],
+        origin="upper"
+    )
+
+
+def expand_bounds(bounds, buffer):
+    return {
+        "x_min": bounds["x_min"] - buffer,
+        "x_max": bounds["x_max"] + buffer,
+        "y_min": bounds["y_min"] - buffer,
+        "y_max": bounds["y_max"] + buffer,
+    }
 
 
 def plot_coverage(coverage_history):
@@ -20,15 +48,35 @@ def plot_coverage(coverage_history):
     plt.show()
 
 
-def plot_paths(data):
-    bounds = {
+def plot_paths(data, exclusion_mask=None):
+    base_bounds = {
         "x_min": float(data["world_x_min"]),
         "x_max": float(data["world_x_max"]),
         "y_min": float(data["world_y_min"]),
         "y_max": float(data["world_y_max"]),
     }
 
-    plt.figure()
+    bounds = expand_bounds(base_bounds, BUFFER)
+
+    fig, ax = plt.subplots()
+    ax.set_facecolor("white")
+    draw_background(ax, BACKGROUND_IMG, base_bounds)
+
+    # Draw exclusion zones as a partially transparent red overlay
+    if exclusion_mask is not None:
+        overlay = np.zeros((*exclusion_mask.shape, 4), dtype=float)
+        overlay[exclusion_mask] = [1.0, 0.0, 0.0, 0.4]  # red, 40% opacity
+        ax.imshow(
+            overlay,
+            origin="lower",
+            extent=[
+                base_bounds["x_min"],
+                base_bounds["x_max"],
+                base_bounds["y_min"],
+                base_bounds["y_max"],
+            ],
+            interpolation="nearest"
+        )
 
     for i in range(NUMBER_OF_DRONES):
         key = f"drone{i}_path"
@@ -40,44 +88,54 @@ def plot_paths(data):
         xs = path[:, 0]
         ys = path[:, 1]
 
-        # Path
-        plt.plot(xs, ys, label=f"DRONE{i}", alpha=0.7)
+        ax.plot(xs, ys, label=f"DRONE{i}", alpha=0.7)
+        ax.plot(xs[0], ys[0], 'go', markersize=6)
+        ax.plot(xs[-1], ys[-1], 'rx', markersize=8, markeredgewidth=2)
 
-        # Start
-        plt.plot(xs[0], ys[0], 'go', markersize=6)
-
-        # End
-        plt.plot(xs[-1], ys[-1], 'rx', markersize=8, markeredgewidth=2)
-
-    plt.xlim(bounds["x_min"], bounds["x_max"])
-    plt.ylim(bounds["y_min"], bounds["y_max"])
-
-    plt.xlabel("X")
-    plt.ylabel("Y")
-    plt.title("Drone Paths (Start = green, End = red X)")
-    plt.legend()
-    plt.gca().set_aspect("equal", adjustable="box")
-    plt.grid()
+    ax.set_xlim(bounds["x_min"], bounds["x_max"])
+    ax.set_ylim(bounds["y_min"], bounds["y_max"])
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_title("Drone Paths (Start = green, End = red X)")
+    ax.legend()
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid()
     plt.show()
 
 
-def plot_heatmap(matrix, title):
-    rows, cols = matrix.shape
+def plot_heatmap(matrix, title, base_bounds):
+    fig, ax = plt.subplots()
+    ax.set_facecolor("white")
+    # Background
+    draw_background(ax, BACKGROUND_IMG, base_bounds)
 
-    plt.figure()
-    plt.imshow(matrix, origin="lower")
-    plt.colorbar()
-    plt.xticks([0, cols - 1])
-    plt.yticks([0, rows - 1])
-    plt.title(title)
+    im = ax.imshow(
+        matrix,
+        origin="lower",
+        extent=[
+            base_bounds["x_min"],
+            base_bounds["x_max"],
+            base_bounds["y_min"],
+            base_bounds["y_max"],
+        ],
+        vmin=np.min(matrix),
+        vmax=np.max(matrix),
+        alpha=0.75
+    )
+
+    plt.colorbar(im, ax=ax)
+
+    ax.set_xlim(base_bounds["x_min"], base_bounds["x_max"])
+    ax.set_ylim(base_bounds["y_min"], base_bounds["y_max"])
+
+    ax.set_title(title)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+
     plt.show()
 
 
 def plot_maps(data, snapshot_index=-1):
-    """
-    Plot pheromone + priority maps at a given snapshot index.
-    Default = last snapshot.
-    """
     pheromone_snapshots = data["pheromone_snapshots"]
     priority_snapshots = data["priority_snapshots"]
 
@@ -85,7 +143,13 @@ def plot_maps(data, snapshot_index=-1):
         print("No snapshots saved.")
         return
 
-    # Handle negative indexing (default = last)
+    bounds = {
+        "x_min": float(data["world_x_min"]),
+        "x_max": float(data["world_x_max"]),
+        "y_min": float(data["world_y_min"]),
+        "y_max": float(data["world_y_max"]),
+    }
+
     snapshot_index = snapshot_index % len(pheromone_snapshots)
 
     pheromone_map = pheromone_snapshots[snapshot_index]
@@ -93,8 +157,17 @@ def plot_maps(data, snapshot_index=-1):
 
     print(f"Plotting snapshot {snapshot_index} / {len(pheromone_snapshots) - 1}")
 
-    plot_heatmap(pheromone_map, f"Pheromone Map (snapshot {snapshot_index} / {len(pheromone_snapshots) - 1})")
-    plot_heatmap(priority_map, f"Priority Map (snapshot {snapshot_index} / {len(priority_snapshots) - 1})")
+    plot_heatmap(
+        pheromone_map,
+        f"Pheromone Map (snapshot {snapshot_index})",
+        bounds
+    )
+
+    plot_heatmap(
+        priority_map,
+        f"Priority Map (snapshot {snapshot_index})",
+        bounds
+    )
 
 
 def plot_everything(npz_path, snapshot_index=-1):
@@ -104,8 +177,13 @@ def plot_everything(npz_path, snapshot_index=-1):
 
     print(f"Final coverage: {coverage_history[-1]:.2f}%")
 
+    if USE_EXCLUSION:
+        exclusion_mask = make_exclusion_mask()
+    else:
+        exclusion_mask = None
+
     plot_coverage(coverage_history)
-    plot_paths(data)
+    plot_paths(data, exclusion_mask=exclusion_mask)
     plot_maps(data, snapshot_index)
 
 

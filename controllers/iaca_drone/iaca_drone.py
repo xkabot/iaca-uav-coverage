@@ -61,6 +61,33 @@ def sample_bounded_gaussian_wind(std, max_mag):
     return clamp_vector_norm(wind, max_mag)
 
 
+def exclusion_repulsion_force(drone_pos, neighbors, margin_world, strength):
+    """
+    Returns a repulsive force pushing drone away from excluded neighbor cells.
+    Force scales with proximity — closer excluded cells push harder.
+    """
+    f = np.zeros(2, dtype=float)
+    drone_pos = np.array(drone_pos)
+
+    for key, val in neighbors.items():
+        if not val.get("excluded", False):
+            continue
+
+        cell_pos = np.array([val["wx"], val["wy"]])
+        diff = drone_pos - cell_pos
+        dist = np.linalg.norm(diff)
+
+        if dist < 1e-6:
+            continue
+
+        # Linear falloff — full strength at dist=0, zero at dist=margin_world
+        if dist < margin_world:
+            t = 1.0 - (dist / margin_world)
+            f += strength * t * (diff / dist)
+
+    return f
+
+
 last_wind_update_time = 0
 wind_vector_world = sample_bounded_gaussian_wind(WIND_STD, WIND_MAX)
 
@@ -124,6 +151,8 @@ v_world = np.zeros(2, dtype=float)  # current filtered world-frame velocity
 yaw_desired = 0.0
 height_desired = FLYING_ATTITUDE
 last_neighbors = {}  # most recent neighbor dict from supervisor
+escape_row = 0.0
+escape_col = 0.0
 startup = True
 
 print("Crazyflie iaca_drone started")
@@ -145,8 +174,6 @@ while robot.step(timestep) != -1:
         )
         last_wind_update_time = current_time
 
-        print(f"New wind vector: ({wind_vector_world[0]:.3f}, {wind_vector_world[1]:.3f})")
-
     dt = current_time - past_time
     if dt <= 0.0:
         continue
@@ -160,6 +187,9 @@ while robot.step(timestep) != -1:
         yaw_desired = float(command.get("yaw_desired", yaw_desired))
         height_desired = float(command.get("height_desired", height_desired))
         startup = bool(command.get("startup", True))
+        escape_row = float(command.get("escape_row", 0.0))
+        escape_col = float(command.get("escape_col", 0.0))
+
         receiver.nextPacket()
 
     # Sensor readings
@@ -199,7 +229,18 @@ while robot.step(timestep) != -1:
             margin=BOUNDARY_MARGIN,
             strength=BOUNDARY_STRENGTH
         )
-        f_total = f_total + f_boundary
+
+        # Convert grid-frame escape direction to world frame
+        # Grid row = world Y, grid col = world X
+        escape_world = np.array([escape_col, escape_row], dtype=float)
+        escape_norm = np.linalg.norm(escape_world)
+
+        if escape_norm > 1e-6:
+            f_escape = np.clip(escape_world, -1.0, 1.0) * EXCLUSION_STRENGTH
+        else:
+            f_escape = np.zeros(2, dtype=float)
+
+        f_total = f_total + f_boundary + f_escape
 
         f_norm = np.linalg.norm(f_total)
 

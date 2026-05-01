@@ -1,4 +1,5 @@
 from controller import Supervisor
+from scipy.ndimage import distance_transform_edt
 import json
 import math
 import numpy as np
@@ -82,7 +83,7 @@ def add_pheromone_noise(new_map, p_max, noise_fraction):
     return noisy
 
 
-def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, noise_fraction):
+def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, lam, noise_fraction, exclusion_mask=None):
     rows, cols = p_map.shape
     drone_positions = np.array(drone_grid_positions)  # shape (N, 2)
 
@@ -105,6 +106,10 @@ def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, la
     new_map = eq.get_updated_pheromone_cell(p_map, p_new, alpha_pheromone)
     new_map = np.clip(new_map, 0.0, p_max)
 
+    # Max out excluded cells - max pheromones so drones avoid them
+    if exclusion_mask is not None:
+        new_map[exclusion_mask] = p_max
+
     # Saturate drone cells and borders
     new_map[tuple(drone_positions.T)] = p_max
     new_map[0, :] = p_max
@@ -115,7 +120,7 @@ def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, la
     return new_map
 
 
-def compute_priority_map(p_map, drone_grid_positions, epsilon):
+def compute_priority_map(p_map, drone_grid_positions, epsilon, exclusion_mask=None):
     rows, cols = p_map.shape
     total_cells = rows * cols
 
@@ -127,6 +132,10 @@ def compute_priority_map(p_map, drone_grid_positions, epsilon):
     ranks = np.empty_like(flat, dtype=float)
     ranks[np.argsort(flat)] = np.arange(total_cells, dtype=float)
     priority_map = eq.normalize_priority(ranks, rows, cols)
+
+    # Zero out excluded cells - min priority so drones avoid them
+    if exclusion_mask is not None:
+        priority_map[exclusion_mask] = 0.0
 
     # Zero out drone positions
     for row, col in drone_grid_positions:
@@ -175,11 +184,22 @@ def mark_observed_cells(observed_mask, center_row, center_col, radius):
                 observed_mask[row, col] = True
 
 
-def get_coverage_percent(observed_mask):
-    return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
+def get_coverage_percent(observed_mask, exclusion_mask=None):
+    if not USE_EXCLUSION:
+        return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
+
+    valid_mask = ~exclusion_mask
+
+    valid_cell_count = np.count_nonzero(valid_mask)
+    if valid_cell_count == 0:
+        return 0.0
+
+    covered_valid_mask = observed_mask & valid_mask
+
+    return 100.0 * np.count_nonzero(covered_valid_mask) / valid_cell_count
 
 
-def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spawn_height=0.5):
+def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=SPAWN_RADIUS, spawn_height=0.5):
     root_node = supervisor_robot.getRoot()
     children_field = root_node.getField("children")
     drone_defs = []
@@ -192,16 +212,19 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
         if number_of_drones == 1:
             initial_x = 0.0
             initial_y = 0.0
+            yaw_angle = 0.0
         else:
             angle = 2.0 * math.pi * i / number_of_drones
             initial_x = spawn_radius * math.cos(angle)
             initial_y = spawn_radius * math.sin(angle)
+            yaw_angle = angle
 
         initial_z = spawn_height
 
         drone_string = f"""
         DEF {drone_def} IacaCrazyflie {{
           translation {initial_x} {initial_y} {initial_z}
+          rotation 0 0 1 {yaw_angle}
           controller "iaca_drone"
           receiverChannel {drone_channel}
         }}
@@ -231,6 +254,48 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
     return drone_defs, drone_channels, translation_fields
 
 
+def build_exclusion_gradient(exclusion_mask, rows, cols, margin_cells=10):
+    safe_mask = ~exclusion_mask
+
+    # Distance of each safe cell to nearest excluded cell (for margin effect)
+    dist_to_exclusion, indices_to_nearest_safe = distance_transform_edt(
+        exclusion_mask, return_indices=True
+    )
+
+    # Also get distance of safe cells to nearest excluded cell
+    dist_safe_to_exclusion = distance_transform_edt(safe_mask)
+
+    R, C = np.meshgrid(np.arange(rows), np.arange(cols), indexing='ij')
+    grad_row = indices_to_nearest_safe[0] - R
+    grad_col = indices_to_nearest_safe[1] - C
+
+    mag = np.sqrt(grad_row ** 2 + grad_col ** 2)
+    mag = np.where(mag < 1e-6, 1.0, mag)
+    grad_row = grad_row / mag
+    grad_col = grad_col / mag
+
+    # In safe cells near the boundary, point away from exclusion zone
+    near_boundary = safe_mask & (dist_safe_to_exclusion < margin_cells)
+    # For these cells, flip to point away from exclusion
+    grad_row[safe_mask & ~near_boundary] = 0.0
+    grad_col[safe_mask & ~near_boundary] = 0.0
+
+    # Scale by proximity — full strength at boundary, zero at margin edge
+    strength_scale = np.where(
+        near_boundary,
+        1.0 - dist_safe_to_exclusion / margin_cells,
+        0.0
+    )
+    grad_row = grad_row * strength_scale
+    grad_col = grad_col * strength_scale
+
+    # Excluded cells always get full escape direction
+    grad_row[exclusion_mask] = (indices_to_nearest_safe[0][exclusion_mask] - R[exclusion_mask]) / mag[exclusion_mask]
+    grad_col[exclusion_mask] = (indices_to_nearest_safe[1][exclusion_mask] - C[exclusion_mask]) / mag[exclusion_mask]
+
+    return grad_row, grad_col
+
+
 # get supervisor instance
 robot = Supervisor()
 
@@ -245,6 +310,17 @@ emitter = robot.getDevice("cmd_emitter")
 pheromone_map = build_border_decay_pheromone_map(GRID_ROWS, GRID_COLS, P_MAX, LAMBDA)
 observed_mask = np.zeros((GRID_ROWS, GRID_COLS), dtype=bool)
 priority_map = np.zeros((GRID_ROWS, GRID_COLS), dtype=float)
+
+if USE_EXCLUSION:
+    print("Using exclusion zones - drones will avoid areas marked in the exclusion mask")
+    ex_mask = make_exclusion_mask()
+    pheromone_map[ex_mask] = P_MAX
+    exclusion_grad_row, exclusion_grad_col = build_exclusion_gradient(
+        ex_mask, GRID_ROWS, GRID_COLS, margin_cells=EXCLUSION_MARGIN_CELLS
+    )
+else:
+    ex_mask = None
+    exclusion_grad_row, exclusion_grad_col = None, None
 
 # Numpy RNG
 rng = np.random.default_rng(SEED)
@@ -308,12 +384,14 @@ while robot.step(timestep) != -1:
             p_max=P_MAX,
             alpha_pheromone=ALPHA_PHEROMONE,
             lam=LAMBDA,
-            noise_fraction=0.05
+            noise_fraction=0.05,
+            exclusion_mask=ex_mask
         )
         priority_map = compute_priority_map(
             p_map=pheromone_map,
             drone_grid_positions=drone_grid_positions,
-            epsilon=EPSILON
+            epsilon=EPSILON,
+            exclusion_mask=ex_mask
         )
 
     if is_save_step or is_final_step:
@@ -359,7 +437,15 @@ while robot.step(timestep) != -1:
                         "q": float(priority_map[n_row, n_col]),
                         "wx": world_x,
                         "wy": world_y,
+                        "excluded": bool(ex_mask[n_row, n_col]) if ex_mask is not None else False,
                     }
+
+                # In command building (always send, not just when in exclusion zone)
+                if ex_mask is not None:
+                    escape_r = float(exclusion_grad_row[row, col])
+                    escape_c = float(exclusion_grad_col[row, col])
+                else:
+                    escape_r, escape_c = 0.0, 0.0
 
                 command = {
                     "neighbors": neighbor_priorities,
@@ -368,13 +454,15 @@ while robot.step(timestep) != -1:
                     "yaw_desired": 0.0,
                     "height_desired": HEIGHT_DESIRED,
                     "startup": False,
+                    "escape_row": escape_r,
+                    "escape_col": escape_c,
                 }
 
             emitter.setChannel(drone_channels[drone_def])
             payload = json.dumps(command).encode("utf-8")
             emitter.send(payload)
 
-        coverage = get_coverage_percent(observed_mask)
+        coverage = get_coverage_percent(observed_mask, ex_mask)
         coverage_history.append(coverage)
 
         if step_count % PRINT_INTERVAL == 0:
