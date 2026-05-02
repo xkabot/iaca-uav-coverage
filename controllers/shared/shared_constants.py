@@ -31,4 +31,4 @@ SENSOR_RADIUS_CELLS = max(1, round(SENSOR_RADIUS_METERS / AVG_CELL_SIZE))
 NUMBER_OF_DRONES = 4
 
 # Set true if you want to use a custom search area (non-rectangular). Drones will avoid any area included in the exclusion bitmap created in supervisor_constants.
-USE_EXCLUSION = True
+USE_EXCLUSION = False
