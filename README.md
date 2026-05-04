@@ -1,4 +1,4 @@
-# IACA UAV Coverage — Reproducibility Study
+# IACA UAV Coverage: A Reproducibility Study
 
 Reproducibility study and extension of:
 > Yedilkhan et al., "Efficient Area Coverage Strategies for High-Altitude UAVs in Smart City Monitoring", *Drones* 2025, 9, 632.
@@ -6,6 +6,13 @@ Reproducibility study and extension of:
 We re-implemented the Inverse Ant Colony Algorithm (IACA) with Artificial Potential Field (APF)
 motion control in Webots, reproduced the paper's results, and extended the algorithm with
 several improvements described below.
+
+---
+
+## Authors
+- **Travis Brown**
+- **Andrew Isaacson**
+- **Caleb Talbott**
 
 ---
 
