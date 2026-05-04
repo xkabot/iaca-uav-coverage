@@ -1,10 +1,15 @@
+import os, sys
 import numpy as np
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
+current_dir = os.path.dirname(__file__)
+shared_path = os.path.abspath(os.path.join(current_dir, "..", "controllers", "iaca_supervisor"))
+sys.path.append(shared_path)
+
 from supervisor_constants import *
 
-BACKGROUND_IMG_PATH = "../../pics/background.png"
+BACKGROUND_IMG_PATH = "../pics/background.png"
 BACKGROUND_IMG = mpimg.imread(BACKGROUND_IMG_PATH)
 
 BUFFER = 100.0
@@ -159,13 +164,13 @@ def plot_maps(data, snapshot_index=-1):
 
     plot_heatmap(
         pheromone_map,
-        f"Pheromone Map (snapshot {snapshot_index})",
+        f"Pheromone Map (snapshot {snapshot_index} / {len(pheromone_snapshots) - 1})",
         bounds
     )
 
     plot_heatmap(
         priority_map,
-        f"Priority Map (snapshot {snapshot_index})",
+        f"Priority Map (snapshot {snapshot_index} / {len(pheromone_snapshots) - 1})",
         bounds
     )
 
@@ -188,4 +193,4 @@ def plot_everything(npz_path, snapshot_index=-1):
 
 
 if __name__ == "__main__":
-    plot_everything("iaca_run_output.npz", snapshot_index=-1)
+    plot_everything("../controllers/iaca_supervisor/iaca_run_output.npz", snapshot_index=-1)
