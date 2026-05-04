@@ -70,12 +70,12 @@ def animate_heatmap(data, snapshots_key, title_prefix, colorbar_label, backgroun
         if snapshot_steps is not None and snapshot_times is not None:
             step = int(snapshot_steps[frame_idx])
             sim_time = float(snapshot_times[frame_idx])
-            title.set_text(f"{title_prefix} | Snapshot {frame_idx} | Step {step} | Time {sim_time:.2f}s")
+            title.set_text(f"{title_prefix} | Step {step} | Time {sim_time:.2f}s")
         elif snapshot_steps is not None:
             step = int(snapshot_steps[frame_idx])
-            title.set_text(f"{title_prefix} | Snapshot {frame_idx} | Step {step}")
+            title.set_text(f"{title_prefix} | Step {step}")
         else:
-            title.set_text(f"{title_prefix} | Snapshot {frame_idx}")
+            title.set_text(f"{title_prefix}")
 
         return image, title
 
@@ -136,11 +136,11 @@ def main():
     print(f"Loaded {len(data['pheromone_snapshots'])} pheromone snapshots.")
     print(f"Loaded {len(data['priority_snapshots'])} priority snapshots.")
 
-    save = False
+    save = True
 
     if save:
-        pher_path = "../pics/v4/pheromone.gif"
-        prio_path = "../pics/v4/priority.gif"
+        pher_path = "../pics/pheromone_out.gif"
+        prio_path = "../pics/priority_out.gif"
     else:
         pher_path = None
         prio_path = None
