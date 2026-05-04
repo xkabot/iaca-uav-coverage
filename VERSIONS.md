@@ -59,7 +59,7 @@ are barely (if at all) going out of bounds before turning around, which was a ma
 Travis - 04/23/2026
 
 ### Things we've added since v3.2:
-- Added the stochastic simulated wind
+- Added the stochastic simulated wind mentioned in the paper
 - Textures for buildings are back!
 - Updated how data-logging is occurring to match paper
 - Improved plotting script, and created a script to show animation of coverage / pheromone map. 
