@@ -180,9 +180,11 @@ changes made in how the drones interact when approaching and past the area borde
 ### Animated GIFs of pheromone and priority maps from our Parameters
 
 **Pheromone map animation**:
+
 ![Pheromone Map Animation](pics/final/pheromone_animation.gif)
 
 **Priority map animation**:
+
 ![Priority Map Animation](pics/final/priority_animation.gif)
 
 ---
