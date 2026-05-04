@@ -166,15 +166,15 @@ run closely in parallel are far enough that there is no overlap in coverage due 
 The drones do not stray far outside the target area, which is due to an alteration in our implementation involving
 changes made in how the drones interact when approaching and past the area border, which is a massive improvement over the papers implementation.
 
-![Drone Paths](pics/final/coverage.png)
+![Drone Paths](pics/final/paths.png)
 
 **Final pheromone map**: Our parameters allow for a much stronger and more persistent pheromone trail. This creates a much clearer memory of where drones have been, which helps steer them toward un-covered areas and improves overall coverage efficiency. The trail is still strongest near the drones' current positions, but it extends much farther back along their paths compared to the paper's parameters.
 
-![Final Pheromone Map](pics/paper_params/pheromone.png)
+![Final Pheromone Map](pics/final/pheromone.png)
 
 **Final priority map**: Our priority map still shows a clear directional gradient towards the least-visited areas, but with our parameters, this gradient is influenced by a stronger pheromone trail, giving drones better guidance based on both current positions and historical positions.
 
-![Final Priority Map](pics/paper_params/priority.png)
+![Final Priority Map](pics/final/priority.png)
 
 
 ### Animated GIFs of pheromone and priority maps from our Parameters
