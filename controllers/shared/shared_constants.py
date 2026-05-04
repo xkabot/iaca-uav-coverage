@@ -2,7 +2,7 @@
 import numpy as np
 
 # Define a shared seed so changes can be compared
-SEED = 2000
+SEED = 20000
 RNG = np.random.default_rng(SEED)
 
 TICK_RATE_MS = 32  # each webots simulation step is 32 ms

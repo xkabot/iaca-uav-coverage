@@ -19,8 +19,8 @@ GRID_ROWS = sc.GRID_ROWS
 GRID_COLS = sc.GRID_COLS
 
 P_MAX = 1_000_000.0
-ALPHA_PHEROMONE = 0.99  # Exponential decay factor for pheromone
-LAMBDA = 0.85  # Spatial decay factor for drone pheromone
+ALPHA_PHEROMONE = 0.9975  # Exponential decay factor for pheromone
+LAMBDA = 0.87  # Spatial decay factor for drone pheromone
 EPSILON = 1e-30
 
 HEIGHT_DESIRED = sc.HEIGHT_DESIRED
