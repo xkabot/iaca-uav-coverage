@@ -28,6 +28,10 @@ def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
     Returns a force pushing drone back toward map center when near or outside bounds.
     Force scales linearly from 0 at the margin boundary to full strength at the edge.
     """
+
+    if margin <= 0.0 or strength <= 0.0:
+        return np.zeros(2, dtype=float)
+
     x, y = drone_pos
     fx, fy = 0.0, 0.0
 
