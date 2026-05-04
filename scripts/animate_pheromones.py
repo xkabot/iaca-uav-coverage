@@ -145,8 +145,8 @@ def main():
         pher_path = None
         prio_path = None
 
-    animate_pheromone(data, background_path, interval_ms=150, repeat=True, save_path=pher_path)
-    animate_priority(data, background_path, interval_ms=150, repeat=True, save_path=prio_path)
+    animate_pheromone(data, background_path, interval_ms=50, repeat=True, save_path=pher_path)
+    animate_priority(data, background_path, interval_ms=50, repeat=True, save_path=prio_path)
 
 
 if __name__ == "__main__":
