@@ -32,7 +32,7 @@ pip install numpy scipy matplotlib
 ## Project Structure
 
 ```
-project/
+iaca-uav-coverage/
 ├── worlds/
 │   ├── iaca_osm_world.wbt          # Webots world file (Astana, Kazakhstan OSM map)
 │   └── iaca_osm_world.wbproj       # Webots project file
@@ -62,20 +62,23 @@ project/
 All key parameters are set in the constants files. **Start with `shared_constants.py`** for the
 most impactful settings:
 
-| Parameter | File | Description |
-|---|---|---|
-| `NUMBER_OF_DRONES` | `shared_constants.py` | Number of drones to spawn |
-| `MAX_STEPS` | `shared_constants.py` | Simulation steps (100k = ~53 min simulated time) |
-| `GRID_ROWS / GRID_COLS` | `shared_constants.py` | Grid resolution (paper used 500×500) |
-| `WORLD_X/Y_MIN/MAX` | `shared_constants.py` | Coverage area bounds in meters (paper used ±450m) |
-| `SENSOR_RADIUS_METERS` | `shared_constants.py` | Drone sensor coverage radius (we used 10m) |
-| `SEED` | `shared_constants.py` | RNG seed for reproducibility |
-| `USE_EXCLUSION` | `shared_constants.py` | Enable exclusion zones for non-rectangular areas |
-| `P_MAX` | `supervisor_constants.py` | Maximum pheromone value |
-| `ALPHA_PHEROMONE` | `supervisor_constants.py` | Pheromone exponential decay factor |
-| `LAMBDA` | `supervisor_constants.py` | Spatial pheromone decay factor |
-| `MAX_WORLD_SPEED` | `drone_constants.py` | Max drone speed in m/s |
-| `BOUNDARY_STRENGTH` | `drone_constants.py` | Strength of boundary deterrent force |
+| Parameter                     | File | Description                                                                                                          |
+|-------------------------------|---|----------------------------------------------------------------------------------------------------------------------|
+| `NUMBER_OF_DRONES`            | `shared_constants.py` | Number of drones to spawn                                                                                            |
+| `MAX_STEPS`                   | `shared_constants.py` | Simulation steps (100k = ~53 min simulated time)                                                                     |
+| `GRID_ROWS / GRID_COLS`       | `shared_constants.py` | Grid resolution (paper used 500×500)                                                                                 |
+| `WORLD_X/Y_MIN/MAX`           | `shared_constants.py` | Coverage area bounds in meters (paper used ±450m)                                                                    |
+| `SENSOR_RADIUS_METERS`        | `shared_constants.py` | Drone sensor coverage radius (we used 10m)                                                                           |
+| `SEED`                        | `shared_constants.py` | RNG seed for reproducibility                                                                                         |
+| `USE_EXCLUSION`               | `shared_constants.py` | Enable exclusion zones for non-rectangular areas                                                                     |
+| `P_MAX`                       | `supervisor_constants.py` | Maximum pheromone value                                                                                              |
+| `ALPHA_PHEROMONE`             | `supervisor_constants.py` | Pheromone exponential decay factor                                                                                   |
+| `LAMBDA`                      | `supervisor_constants.py` | Spatial pheromone decay factor                                                                                       |
+| `MAX_WORLD_SPEED`             | `drone_constants.py` | Max drone speed in m/s                                                                                               |
+| `BOUNDARY_STRENGTH`           | `drone_constants.py` | Strength of boundary deterrent force                                                                                 |
+| `BOUNDARY_MARGIN`             | `drone_constants.py` | width of area where boundary deterrent force will be applied                                                         |
+| `EXCLUSION_MARGIN / STRENGTH` | `drone_constants.py` | Same as boundary variables but for exclusion zones; generally should be larger due to differences in implementations |
+
 
 > **Note on step count:** Each Webots timestep is 32ms. 15,000 steps ≈ 8 minutes of simulated
 > flight; 100,000 steps ≈ 53 minutes.
