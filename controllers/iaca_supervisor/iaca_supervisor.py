@@ -259,10 +259,10 @@ def initalize_drones(supervisor_robot, number_of_drones, spawn_radius=10.0, spaw
             raise ValueError(f"Could not get translation field for {drone_def}")
 
         position = translation_field.getSFVec3f()
-        print(
-            f"{drone_def}: starting position = "
-            f"{position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f}"
-        )
+        # print(
+        #     f"{drone_def}: starting position = "
+        #     f"{position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f}"
+        # )
 
         drone_defs.append(drone_def)
         drone_channels[drone_def] = drone_channel
@@ -280,10 +280,6 @@ experimenting = master_config.get("experimenting", False)
 
 # Define the random number generator
 rng = np.random.default_rng(master_config["seed"])
-rng_state_file = os.path.join(config_path, master_config["rng_state_file"])
-
-# Defines the output for the first simulation results
-output_path = os.path.join(current_dir, master_config["output_path"])
 
 # Run once if experiments are not being simulated
 if experimenting:
@@ -292,15 +288,25 @@ if experimenting:
 else:
     num_sims, num_configs = 1, 1
 
+# Output file directories
+output_dir = master_config["output_dir"]
+temp_dir = master_config["temp_dir"]
+
+# Output file paths/names
+final_results_file = os.path.join(current_dir, output_dir, master_config["final_coverage"])
+# Defines the output for the first simulation results
+iaca_run_path = os.path.join(current_dir, output_dir, master_config["iaca_run"])
+rng_state_file = os.path.join(shared_path, temp_dir, master_config["rng_state_file"])
+
 # Store coverage data
 coverages = {}
-coverage_file = os.path.join(config_path, "coverage.json")
+
 
 # Test each configuration to simulate, execute a standard run if experimenting is False
 for config_index in range(num_configs):
     if experimenting:
         cfg = init_configs(master_config["configs"][config_index], rng, experimenting)
-        cfg_name = master_config["configs"][config_index].get("name", f"run_{config_index + 1}")
+        cfg_name = master_config["configs"][config_index].get("name", f"config{config_index}")
     else:
         cfg = init_configs({}, rng)
         cfg_name = "single_run"
@@ -455,13 +461,14 @@ for config_index in range(num_configs):
                 coverage_history.append(coverage)
 
                 if step_count % cfg.print_interval == 0:
-                    print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
-
+                    #print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
+                    pass
+                    
             if is_final_step:
                 # Only save key results of the first simulation
                 if sim == 0:
-                    tmp_path = output_path + ".tmp.npz"
-                    out_path = output_path + ".npz"
+                    tmp_path = iaca_run_path + ".tmp.npz"
+                    out_path = iaca_run_path + ".npz"
 
                     save_data = {
                         "world_x_min": cfg.world_x_min,
@@ -484,7 +491,7 @@ for config_index in range(num_configs):
 
                     np.savez_compressed(tmp_path, **save_data)
                     os.replace(tmp_path, out_path)
-                    print(f"Saved run output to: {output_path}")
+                    print(f"Saved run output to: {iaca_run_path}")
                 
                 # Move onto next simulation, or end program
                 if step_count >= cfg.max_steps:
@@ -509,12 +516,18 @@ for config_index in range(num_configs):
                 
     # After all simulations are complete, average the coverage
     coverages[cfg_name] = round(coverage_sum / num_sims, 3)
+    
+    # Write the final results for each config
+    with open(final_results_file, "w") as out:
+        json.dump(coverages, out)
 
 
 # Pause and save the coverage results
 print("\nFinished all simulations!")
+
+# Pause to prevent further simulation
 robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
 
-with open(coverage_file, "w") as out:
-    json.dump(coverages, out)
-            
+# Remove RNG state file
+if os.path.exists(rng_state_file):
+    os.remove(rng_state_file)

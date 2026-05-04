@@ -1,6 +1,14 @@
 import math
+import os
+import sys
+
+
+current_dir = os.path.dirname(__file__)
+shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
+sys.path.append(shared_path)
 
 from shared_c import SharedConstants
+
 
 class DroneConstants:
     """Contains constants used by the drone controller."""

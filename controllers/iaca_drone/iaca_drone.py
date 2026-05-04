@@ -174,7 +174,7 @@ height_desired = cfg.flying_altitude
 last_neighbors = {}  # most recent neighbor dict from supervisor
 startup = True
 
-print("Crazyflie iaca_drone started")
+#print("Crazyflie iaca_drone started")
 
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
