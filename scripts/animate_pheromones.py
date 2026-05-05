@@ -1,14 +1,16 @@
+import os
+import sys
+
 import numpy as np
-import os, sys
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from matplotlib.animation import FuncAnimation
 
 current_dir = os.path.dirname(__file__)
-shared_path = os.path.abspath(os.path.join(current_dir, "..", "controllers", "iaca_supervisor"))
-sys.path.append(shared_path)
-
-from supervisor_constants import *
+supervisor_path = os.path.abspath(os.path.join(current_dir, "..", "controllers", "iaca_supervisor"))
+pics_path = os.path.abspath(os.path.join(current_dir, "..", "pics"))
+sys.path.append(supervisor_path)
+sys.path.append(pics_path)
 
 
 def load_data(path):
@@ -130,8 +132,8 @@ def animate_priority(data, background_path, interval_ms=200, repeat=True, save_p
 
 
 def main():
-    data = load_data("../controllers/iaca_supervisor/iaca_run_output.npz")
-    background_path = "../pics/background.png"
+    data = load_data(os.path.join(supervisor_path, "out", "iaca_run_output.npz"))
+    background_path = os.path.join(pics_path, "background.png")
 
     print(f"Loaded {len(data['pheromone_snapshots'])} pheromone snapshots.")
     print(f"Loaded {len(data['priority_snapshots'])} priority snapshots.")
@@ -139,8 +141,8 @@ def main():
     save = True
 
     if save:
-        pher_path = "../pics/pheromone_out.gif"
-        prio_path = "../pics/priority_out.gif"
+        pher_path = os.path.join(pics_path, "pheromone_out.gif")
+        prio_path = os.path.join(pics_path, "priority_out.gif")
     else:
         pher_path = None
         prio_path = None

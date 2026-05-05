@@ -4,19 +4,24 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
 current_dir = os.path.dirname(__file__)
-shared_path = os.path.abspath(os.path.join(current_dir, "..", "controllers", "iaca_supervisor"))
-sys.path.append(shared_path)
+supervisor_path = os.path.abspath(os.path.join(current_dir, "..", "controllers", "iaca_supervisor"))
+pics_path = os.path.abspath(os.path.join(current_dir, "..", "pics"))
+sys.path.append(supervisor_path)
+sys.path.append(pics_path)
 
-from supervisor_constants import *
+from supervisor_c import make_exclusion_mask
 
-BACKGROUND_IMG_PATH = "../pics/background.png"
+BACKGROUND_IMG_PATH = os.path.join(pics_path, "background.png")
 BACKGROUND_IMG = mpimg.imread(BACKGROUND_IMG_PATH)
 
 BUFFER = 100.0
 
 
-def load_data(path):
-    return np.load(path)
+def load_data(path) -> dict:
+    data = np.load(path)
+    data_dict = dict(data)
+    data.close()
+    return data_dict
 
 
 def draw_background(ax, img, bounds):
@@ -41,8 +46,8 @@ def expand_bounds(bounds, buffer):
     }
 
 
-def plot_coverage(coverage_history):
-    x = [i * SUPERVISOR_STEP_SIZE for i in range(len(coverage_history))]
+def plot_coverage(coverage_history, supervisor_step):
+    x = [i * supervisor_step for i in range(len(coverage_history))]
 
     plt.figure()
     plt.plot(x, coverage_history)
@@ -83,7 +88,7 @@ def plot_paths(data, exclusion_mask=None):
             interpolation="nearest"
         )
 
-    for i in range(NUMBER_OF_DRONES):
+    for i in range(data["number_of_drones"]):
         key = f"drone{i}_path"
         path = data[key]
 
@@ -179,18 +184,20 @@ def plot_everything(npz_path, snapshot_index=-1):
     data = load_data(npz_path)
 
     coverage_history = data["coverage_history"]
+    supervisor_step = data["supervisor_step"]
+    use_exclusion = data["use_exclusion"]
 
     print(f"Final coverage: {coverage_history[-1]:.2f}%")
 
-    if USE_EXCLUSION:
-        exclusion_mask = make_exclusion_mask()
+    if use_exclusion:
+        exclusion_mask = make_exclusion_mask(data)
     else:
         exclusion_mask = None
 
-    plot_coverage(coverage_history)
+    plot_coverage(coverage_history, supervisor_step)
     plot_paths(data, exclusion_mask=exclusion_mask)
     plot_maps(data, snapshot_index)
 
 
 if __name__ == "__main__":
-    plot_everything("../controllers/iaca_supervisor/iaca_run_output.npz", snapshot_index=-1)
+    plot_everything(os.path.join(supervisor_path, "out", "iaca_run_output.npz"), snapshot_index=-1)

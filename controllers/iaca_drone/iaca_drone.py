@@ -280,7 +280,7 @@ while robot.step(timestep) != -1:
             cfg.world_y_min,
             cfg.world_y_max,
             margin=cfg.boundary_margin,
-            strength=cfg.boundary_strength,
+            strength=cfg.boundary_strength
         )
 
         # Convert grid-frame escape direction to world frame

@@ -1,13 +1,12 @@
 import pickle
-import subprocess
-
-from controller import Supervisor
-from scipy.ndimage import distance_transform_edt
 import json
 import math
 import numpy as np
 import os
 import sys
+
+from controller import Supervisor
+from scipy.ndimage import distance_transform_edt
 
 current_dir = os.path.dirname(__file__)
 shared_path = os.path.abspath(os.path.join(current_dir, "..", "shared"))
@@ -215,7 +214,7 @@ def mark_observed_cells(observed_mask, center_row, center_col, radius):
 
 
 def get_coverage_percent(observed_mask, exclusion_mask=None):
-    if not exclusion_mask:
+    if exclusion_mask is not None:
         return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
 
     valid_mask = ~exclusion_mask
@@ -298,8 +297,8 @@ def build_exclusion_gradient(exclusion_mask, rows, cols, margin_cells=10):
     safe_mask = ~exclusion_mask
 
     # Distance of each safe cell to nearest excluded cell (for margin effect)
-    dist_to_exclusion, indices_to_nearest_safe = distance_transform_edt(
-        exclusion_mask, return_indices=True
+    indices_to_nearest_safe = distance_transform_edt(
+        exclusion_mask, return_distances=False, return_indices=True
     )
 
     # Also get distance of safe cells to nearest excluded cell
@@ -521,10 +520,10 @@ for config_index in range(num_configs):
                                 "q": float(priority_map[n_row, n_col]),
                                 "wx": world_x,
                                 "wy": world_y,
-                                "excluded": bool(cfg.exclusion_mask[n_row, n_col]) if cfg.exclusion_mask else False
+                                "excluded": bool(cfg.exclusion_mask[n_row, n_col]) if cfg.exclusion_mask is not None else False
                             }
                             
-                        if not cfg.exclusion_mask:
+                        if cfg.exclusion_mask is not None:
                             escape_r = float(exclusion_grad_row[row, col])
                             escape_c = float(exclusion_grad_col[row, col])
                         else:
@@ -565,6 +564,9 @@ for config_index in range(num_configs):
                         "world_y_max": cfg.world_y_max,
                         "grid_rows": cfg.grid_rows,
                         "grid_cols": cfg.grid_cols,
+                        "use_exclusion": cfg.use_exclusion,
+                        "supervisor_step": cfg.supervisor_step_size,
+                        "number_of_drones": cfg.number_of_drones,
                         "coverage_history": np.array(coverage_history, dtype=np.float32),
                         "snapshot_steps": np.array(snapshot_steps, dtype=np.int32),
                         "snapshot_times": np.array(snapshot_times, dtype=np.float32),
@@ -577,9 +579,9 @@ for config_index in range(num_configs):
                     for drone_def in drone_defs:
                         save_data[f"{drone_def.lower()}_path"] = np.array(paths[drone_def], dtype=np.float32)
 
-                    np.savez_compressed(tmp_path, **save_data)
-                    os.replace(tmp_path, out_path)
-                    print(f"Saved run output to: {iaca_run_path}")
+                    np.savez_compressed(out_path, **save_data)
+                    # os.replace(tmp_path, out_path)
+                    print(f"Saved run output to: {iaca_run_path}.npz")
                 
                 # Move onto next simulation, or end program
                 if step_count >= cfg.max_steps:
@@ -611,7 +613,10 @@ for config_index in range(num_configs):
 
 
 # Pause and save the coverage results
-print("\nFinished all simulations!")
+print(
+    "Finished all simulations!\n"
+    f"All results saved to {final_results_file}"
+)
 
 # Pause to prevent further simulation
 robot.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)

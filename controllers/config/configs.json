@@ -1,12 +1,12 @@
 {
-    "experimenting": true,
+    "experimenting": false,
     "temp_dir": "tmp",
     "output_dir": "out",
     "rng_state_file": "rng_state.pk1",
     "iaca_run": "iaca_run_output",
     "final_coverage": "final_coverages.json",
     "seed": 20000,
-    "num_sims": 3,
+    "num_sims": 1,
     "configs": [
         {
             "name": "size350_lam080",

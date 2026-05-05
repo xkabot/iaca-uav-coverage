@@ -22,9 +22,22 @@ several improvements described below.
 - Python 3.10+
 - Python packages: `numpy`, `scipy`, `matplotlib`
 
-Install dependencies:
+Webots executes the global Python installation when running simulations. To set the specific Python installation used by Webots:
+
+1. Open **Webots**.
+2. Go to **Tools > Preferences** *(Windows & Linux)* or **Webots > Preferences** *(macOS)*.
+3. In the **General** tab, find the **Python command** field.
+4. Paste the absolute path of the Python executable you wish to use.
+
+Install the following pacakages:
+
 ```bash
 pip install numpy scipy matplotlib
+```
+
+If you defined a different installation in Webots, install the packages using the following command:
+```bash
+C:\path\to\installation\python.exe -m pip install numpy
 ```
 
 ---
