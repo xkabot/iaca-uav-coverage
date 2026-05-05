@@ -20,17 +20,18 @@ from shared_c import SharedConstants
 
 def load_config() -> dict:
     """Loads a config from a json file."""
-    
+
     cfg_file = os.path.join(config_path, "configs.json")
     # print(f"Drone reading: {cfg_file}")
     with open(cfg_file, "r") as file:
         return json.load(file)
-    
+
+
 def init_configs(cfg: dict, rng, experimenting=False) -> DroneConstants:
     """Initializes a `DroneConstants` instance, which contains the values provided
     by `cfg`. Any values not present in `cfg` will contain their default values defined
     in `DroneConstants` and `SharedConstants`."""
-    
+
     if experimenting:
         shared = SharedConstants(cfg["shared"], rng)
         drone = DroneConstants(shared, cfg["drone"])
@@ -38,7 +39,7 @@ def init_configs(cfg: dict, rng, experimenting=False) -> DroneConstants:
         # If not experimenting, just initialize with default values.
         shared = SharedConstants(rng=rng)
         drone = DroneConstants(shared)
-        
+
     return drone
 
 
@@ -54,6 +55,10 @@ def boundary_force(drone_pos, x_min, x_max, y_min, y_max, margin, strength):
     Returns a force pushing drone back toward map center when near or outside bounds.
     Force scales linearly from 0 at the margin boundary to full strength at the edge.
     """
+
+    if margin <= 0.0 or strength <= 0.0:
+        return np.zeros(2, dtype=float)
+
     x, y = drone_pos
     fx, fy = 0.0, 0.0
 
@@ -87,15 +92,43 @@ def sample_bounded_gaussian_wind(std, max_mag):
     return clamp_vector_norm(wind, max_mag)
 
 
+def exclusion_repulsion_force(drone_pos, neighbors, margin_world, strength):
+    """
+    Returns a repulsive force pushing drone away from excluded neighbor cells.
+    Force scales with proximity — closer excluded cells push harder.
+    """
+    f = np.zeros(2, dtype=float)
+    drone_pos = np.array(drone_pos)
+
+    for key, val in neighbors.items():
+        if not val.get("excluded", False):
+            continue
+
+        cell_pos = np.array([val["wx"], val["wy"]])
+        diff = drone_pos - cell_pos
+        dist = np.linalg.norm(diff)
+
+        if dist < 1e-6:
+            continue
+
+        # Linear falloff — full strength at dist=0, zero at dist=margin_world
+        if dist < margin_world:
+            t = 1.0 - (dist / margin_world)
+            f += strength * t * (diff / dist)
+
+    return f
+
+
+# Initialize drone
 robot = Robot()
 
 # Load the master config from the specified file in load_config
 master_config = load_config()
 
-# IacaCrazyFile.proto contains a field where we can store the simulation counter 
+# IacaCrazyFile.proto contains a field where we can store the simulation counter
 # and file path where the numpy rng state is stored.
-custom_data = robot.getCustomData() 
-rng_file, config_num = custom_data.split(',')
+custom_data = robot.getCustomData()
+rng_file, config_num = custom_data.split(",")
 config_num = int(config_num)
 
 # If experiments are not being ran, use default constants; otherwise, initialize
@@ -109,6 +142,7 @@ with open(rng_file, "rb") as f:
 # Initialize the drone constants
 current_config = master_config["configs"][config_num]
 cfg = init_configs(current_config, rng, experimenting)
+
 
 last_wind_update_time = 0
 wind_vector_world = sample_bounded_gaussian_wind(cfg.wind_std, cfg.wind_max)
@@ -172,9 +206,11 @@ v_world = np.zeros(2, dtype=float)  # current filtered world-frame velocity
 yaw_desired = 0.0
 height_desired = cfg.flying_altitude
 last_neighbors = {}  # most recent neighbor dict from supervisor
+escape_row = 0.0
+escape_col = 0.0
 startup = True
 
-#print("Crazyflie iaca_drone started")
+# print("Crazyflie iaca_drone started")
 
 while robot.step(timestep) != -1:
     current_time = robot.getTime()
@@ -188,12 +224,9 @@ while robot.step(timestep) != -1:
 
     if current_time - last_wind_update_time >= cfg.wind_update_period:
         wind_vector_world = sample_bounded_gaussian_wind(
-            std=cfg.wind_std,
-            max_mag=cfg.wind_max
+            std=cfg.wind_std, max_mag=cfg.wind_max
         )
         last_wind_update_time = current_time
-
-        # print(f"New wind vector: ({wind_vector_world[0]:.3f}, {wind_vector_world[1]:.3f})")
 
     dt = current_time - past_time
     if dt <= 0.0:
@@ -208,6 +241,9 @@ while robot.step(timestep) != -1:
         yaw_desired = float(command.get("yaw_desired", yaw_desired))
         height_desired = float(command.get("height_desired", height_desired))
         startup = bool(command.get("startup", True))
+        escape_row = float(command.get("escape_row", 0.0))
+        escape_col = float(command.get("escape_col", 0.0))
+
         receiver.nextPacket()
 
     # Sensor readings
@@ -234,20 +270,30 @@ while robot.step(timestep) != -1:
             neighbors.append((cell_center, Q_k))
 
         f_total = eq.get_total_attracting_force(
-            neighbors=neighbors,
-            drone_pos=drone_pos,
-            v_old=v_world,
-            D_max=cfg.d_max
+            neighbors=neighbors, drone_pos=drone_pos, v_old=v_world, D_max=cfg.d_max
         )
 
         f_boundary = boundary_force(
             drone_pos,
-            cfg.world_x_min, cfg.world_x_max,
-            cfg.world_y_min, cfg.world_y_max,
+            cfg.world_x_min,
+            cfg.world_x_max,
+            cfg.world_y_min,
+            cfg.world_y_max,
             margin=cfg.boundary_margin,
-            strength=cfg.boundary_strength
+            strength=cfg.boundary_strength,
         )
-        f_total = f_total + f_boundary
+
+        # Convert grid-frame escape direction to world frame
+        # Grid row = world Y, grid col = world X
+        escape_world = np.array([escape_col, escape_row], dtype=float)
+        escape_norm = np.linalg.norm(escape_world)
+
+        if escape_norm > 1e-6:
+            f_escape = np.clip(escape_world, -1.0, 1.0) * cfg.exclusion_strength
+        else:
+            f_escape = np.zeros(2, dtype=float)
+
+        f_total = f_total + f_boundary + f_escape
 
         f_norm = np.linalg.norm(f_total)
 
@@ -267,14 +313,10 @@ while robot.step(timestep) != -1:
                 effective_delta = cfg.delta_v_max
 
             v_new = eq.update_drone_velocity(
-                v_current=v_world,
-                F_a=f_total,
-                v_max=effective_delta
+                v_current=v_world, F_a=f_total, v_max=effective_delta
             )
             v_world = eq.stability_aware_velocity_adjustment(
-                v_t_minus_1=v_world,
-                v_new=v_new,
-                alpha=cfg.alpha_velocity
+                v_t_minus_1=v_world, v_new=v_new, alpha=cfg.alpha_velocity
             )
             v_world = clamp_vector_norm(v_world, cfg.max_world_speed)
 
@@ -286,9 +328,7 @@ while robot.step(timestep) != -1:
     sideways_desired = v_body[1]
 
     v_gps_global = eq.estimate_velocity(
-        [x_global, y_global],
-        [past_x_global, past_y_global],
-        dt
+        [x_global, y_global], [past_x_global, past_y_global], dt
     )
     v_gps_body = eq.global_to_body_velocity(v_gps_global, yaw)
 

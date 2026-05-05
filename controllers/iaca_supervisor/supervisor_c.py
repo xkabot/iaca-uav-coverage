@@ -29,6 +29,7 @@ class SupervisorConstants:
     spawn_radius = 20.0
     
     # Local exclusion zone parameters
+    use_exclusion = False
     exclusion_mask = None
     exclusion_margin_cells = 15 
     
@@ -67,6 +68,7 @@ class SupervisorConstants:
         # Use to create a boolean mask of shape (grid_rows, grid_cols) where True indicates excluded areas, this is for manual creation,
         # but could very easily create like a visual creator if wanted.
         if self.use_exclusion:
+            print("Using exclusion zones - drones will avoid areas marked in the exclusion mask")
             j_idx = np.arange(self.grid_cols)
             i_idx = np.arange(self.grid_rows)
             X = self.world_x_min + j_idx * (self.world_x_max - self.world_x_min) / (self.grid_cols - 1)
