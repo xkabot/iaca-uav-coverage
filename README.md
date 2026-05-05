@@ -47,24 +47,29 @@ C:\path\to\installation\python.exe -m pip install numpy
 ```
 iaca-uav-coverage/
 ├── worlds/
-│   ├── iaca_osm_world.wbt          # Webots world file (Astana, Kazakhstan OSM map)
-│   └── iaca_osm_world.wbproj       # Webots project file
+│   ├── iaca_osm_world.wbt            # Webots world file (Astana, Kazakhstan OSM map)
+│   └── iaca_osm_world.wbproj         # Webots project file
 ├── controllers/
+│   ├── config/
+│   │   ├── configs.json              # Defines the settings for running this algorithm. 
+│   │   ├── full_config_example.json  # Example parameter configuration for experimenting.
 │   ├── shared/
-│   │   ├── shared_constants.py     # Global parameters (grid size, world bounds, drone count, etc.)
-│   │   └── equations.py            # All equations from the paper, implemented and documented
+│   │   ├── sharec_c.py               # Global parameters (grid size, world bounds, drone count, etc.)
+│   │   └── equations.py              # All equations from the paper, implemented and documented
+│   │   └── tmp/                      # Stores temporary RNG state between supervisor and drone
 │   ├── iaca_supervisor/
-│   │   ├── iaca_supervisor.py      # Central supervisor: pheromone map, priority map, drone coordination
-│   │   └── supervisor_constants.py # Supervisor-specific parameters (P_MAX, alpha, lambda, etc.)
+│   │   ├── iaca_supervisor.py        # Central supervisor: pheromone map, priority map, drone coordination
+│   │   └── supervisor_c.py           # Supervisor-specific parameters (P_MAX, alpha, lambda, etc.)
+│   │   └── out/                      # Outputs coverage and compressed NumPy results for configuration simulations.
 │   └── iaca_drone/
-│       ├── iaca_drone.py           # Per-drone controller: APF force, PID stabilization, wind
-│       ├── pid_controller.py       # Crazyflie PID controller (provided with drone model)
-│       └── drone_constants.py      # Drone-specific parameters (speed, boundary strength, etc.)
+│       ├── iaca_drone.py             # Per-drone controller: APF force, PID stabilization, wind
+│       ├── pid_controller.py         # Crazyflie PID controller (provided with drone model)
+│       └── drone_c.py                # Drone-specific parameters (speed, boundary strength, etc.)
 ├── scripts/
-│   ├── plot_iaca_results.py        # Plot coverage over time, drone paths, pheromone/priority maps
-│   └── animate_pheromones.py       # Animate pheromone and priority maps as GIFs or live
+│   ├── plot_iaca_results.py          # Plot coverage over time, drone paths, pheromone/priority maps
+│   └── animate_pheromones.py         # Animate pheromone and priority maps as GIFs or live
 ├── pics/
-│   └── **/*.png                    # Images generated from simulations, used in README.md and VERSIONS.md
+│   └── **/*.png                      # Images generated from simulations, used in README.md and VERSIONS.md
 └── README.md
 ```
 
