@@ -72,25 +72,117 @@ iaca-uav-coverage/
 
 ## Configuration
 
-All key parameters are set in the constants files. **Start with `shared_constants.py`** for the
+All algorithm parameters are initialized with default values that can be found in: (`shared/shared_c.py`, `iaca_supervisor/supervisor_c.py`, `drone/drone_c.py`) inside of the `controllers/` directory. Create custom parameter configurations to start running simulations with custom parameters in `controllers/config/configs.json`.
+
+### Configuration Setting JSON Structure
+
+```json
+{
+    "experimenting": bool,
+    "temp_dir": str,
+    "output_dir": str,
+    "rng_state_file": str,
+    "iaca_run": str,
+    "final_coverage": str,
+    "seed": int,
+    "num_sims": int,
+    "configs": [{...}, ...]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `experimenting` | If set to `true`, the supervisor will run simulations on the algorithm using the default parameter values; otherwise, the simulations will be executed across each configuration in `configs`. Default: `false`
+| `temp_dir` | Name of the `tmp/` directory where temporary data files are stored for serialized supervisor to drone communication. Contained within the `shared/` directory. Used for transmitting a NumPy RNG Generator instance. Standard: `"tmp"` (recommended to not change) |
+| `output_dir` | Name of the `out/` directory where final coverage and compressed IACA results are stored. Contained within the `iaca_supervisor/` directory. Standard: `"tmp"` (recommended to not change)
+| `rng_state_file` | Name of the serialized NumPy RNG Generator file for state transfer between the supervisor and drones. Standard: `rng_state.pk1` (**should not be changed**) |
+| `final_coverage` | Name of the JSON file which stores the average final coverage results across all simulations and parameter configurations. Default: `"final_coverages.json"` |
+| `seed` | Seed used across all simulations. Used to produce repeatable stochastic results across simulations. Default: `2000` |
+| `num_sims` | Number of simulations to run for each parameter configuration. Default: `1` | 
+| `configs` | Array of `0..N` JSON objects which contain the `"name"` of the configuration, and the `"shared"`, `"drone"`, and `"supervisor"` parameter values. Each field should match exactly with the defined attributes in the constant classes: `SharedConstants`, `DroneConstants`, `SupervisorConstants`; contained within subdirectories found in `controllers/`. Additionally, the value types should correspond to the same types in the class attribute definitions. |
+
+### Single Config Object (in `configs`):
+
+A config object must include the `"shared"`, `"drone"`, and `"supervisor"` fields with an associated object `{}`. The object can be blank indicating to use all default parameters. Parameter definitions can also be emitted from the object to receive a default assignment.
+
+```json
+{
+    "name": str,
+    "shared": {
+        "tick_rate_ms": int,
+        "max_steps": int,
+        "world_x_min": -float,
+        "world_x_max": float,
+        "world_y_min": -float,
+        "world_y_max": float,
+        "grid_rows": int,
+        "grid_cols": int,
+        "number_of_drones": int,
+        "sensor_radius_meters": int,
+        "height_desired": float
+    },
+    "drone": {
+        "boundary_strength": float,
+        "boundary_margin": float,
+        "delta_v_max": float,
+        "alpha_velocity": float,
+        "max_world_speed": float,
+        "wind_update_period": float,
+        "wind_std": float,
+        "wind_max": float,
+        "exclusion_strength": float,
+        "exclusion_margin": float
+    },
+    "supervisor": {
+        "p_max": float,
+        "alpha_pheromone": float,
+        "noise_fraction": float,
+        "lam": float,
+        "priority_exponent": float,
+        "startup_hover_time": float,
+        "save_maps_interval": int,
+        "print_interval": int,
+        "supervisor_step_size": int,
+        "spawn_radius": float,
+        "use_exclusion": bool,
+        "exclusion_margin_cells": int
+    }
+}
+```
+
+**Start with `shared`** for the
 most impactful settings:
 
-| Parameter                     | File | Description                                                                                                          |
+| Parameter                     | Config | Description                                                                                                          |
 |-------------------------------|---|----------------------------------------------------------------------------------------------------------------------|
-| `NUMBER_OF_DRONES`            | `shared_constants.py` | Number of drones to spawn                                                                                            |
-| `MAX_STEPS`                   | `shared_constants.py` | Simulation steps (100k = ~53 min simulated time)                                                                     |
-| `GRID_ROWS / GRID_COLS`       | `shared_constants.py` | Grid resolution (paper used 500×500)                                                                                 |
-| `WORLD_X/Y_MIN/MAX`           | `shared_constants.py` | Coverage area bounds in meters (paper used ±450m)                                                                    |
-| `SENSOR_RADIUS_METERS`        | `shared_constants.py` | Drone sensor coverage radius (we used 10m)                                                                           |
-| `SEED`                        | `shared_constants.py` | RNG seed for reproducibility                                                                                         |
-| `USE_EXCLUSION`               | `shared_constants.py` | Enable exclusion zones for non-rectangular areas                                                                     |
-| `P_MAX`                       | `supervisor_constants.py` | Maximum pheromone value                                                                                              |
-| `ALPHA_PHEROMONE`             | `supervisor_constants.py` | Pheromone exponential decay factor                                                                                   |
-| `LAMBDA`                      | `supervisor_constants.py` | Spatial pheromone decay factor                                                                                       |
-| `MAX_WORLD_SPEED`             | `drone_constants.py` | Max drone speed in m/s                                                                                               |
-| `BOUNDARY_STRENGTH`           | `drone_constants.py` | Strength of boundary deterrent force                                                                                 |
-| `BOUNDARY_MARGIN`             | `drone_constants.py` | width of area where boundary deterrent force will be applied                                                         |
-| `EXCLUSION_MARGIN / STRENGTH` | `drone_constants.py` | Same as boundary variables but for exclusion zones; generally should be larger due to differences in implementations |
+| `number_of_drones`            | `shared` | Number of drones to spawn                                                                                            |
+| `max_steps`                   | `shared` | Simulation steps (100k = ~53 min simulated time)                                                                     |
+| `grid_rows & grid_cols`       | `shared` | Grid resolution (paper used 500×500)                                                                                 |
+| `world_x/y_min/max`           | `shared` | Coverage area bounds in meters (paper used ±450m)                                                                    |
+| `sensor_radius_meters`        | `shared` | Drone sensor coverage radius (we used 10m)                                                                           |
+| `seed`                        | `shared` | RNG seed for reproducibility                                                                                        |
+| `use_exclusion`               | `shared` | Enable exclusion zones for non-rectangular areas |
+| `tick_rate_ms` | `shared` | Webots simulation step (paper used 32ms) |
+| `height_desired` | `shared` | Target altitude in meters for drones, which is passed to PID controller. |
+| `p_max`                       | `supervisor` | Maximum pheromone value                                                                                              |
+| `alpha_pheromone`             | `supervisor` | Pheromone exponential decay factor                                                                                   |
+| `noise_fraction` | `supervisor` | Random perbutation factor added to pheromone map each supervisor update (paper set this to ±0.5) |
+| `lam`                      | `supervisor` | Spatial pheromone decay factor (lambda)                                                                                      |
+| `priority_exponent` | `supervisor` | Controls sharpness of priority contrast between high and low pheromone cells (gamma) (paper set this to 4.0, we set it to 1.0) |
+| `exclusion_margin_cells` | `supervisor` | Controls how far from exclusion boundary repulses |
+| `supervisor_step_size` | `supervisor` | Number of steps map updates occur (we set to 15) |
+| `startup_hover_time` | `supervisor` | Number of elapsed seconds before drones start moving |
+| `save_maps / print_interval` | `supervisor` | How often data snapshots are taken during a simulation |
+| `spawn_radius` | `supervisor` | Radius in meters at which drones are placed in a circle |
+| `max_world_speed`             | `drone` | Max drone speed in m/s                                                                                               |
+| `delta_v_max` | `drone` | Maximum velocity increment applied per step |
+| `d_max` | `drone` | Maximum diagnonal velocity for drone. Default: sqrt(shared.cell_size_x ** 2 + shared.cell_size_y ** 2) |
+| `alpha_velocity` | `drone` | Velocity smoothing factor |
+| `boundary_strength`           | `drone` | Strength of boundary deterrent force                                                                                 |
+| `boundary_margin`             | `drone` | width of area where boundary deterrent force will be applied                                                         |
+| `exclusion_margin / strength` | `drone` | Same as boundary variables but for exclusion zones; generally should be larger due to differences in implementations |
+| `wind_std/max` | `drone` | Gaussian parameters for sampling a wind vector for simulating wind disturbances. |
+| `wind_update_period` | `drone` | Seconds between simulated wind disturbances |
 
 
 > **Note on step count:** Each Webots timestep is 32ms. 15,000 steps ≈ 8 minutes of simulated
@@ -101,10 +193,12 @@ most impactful settings:
 ## Running a Simulation
 
 1. Open `worlds/iaca_osm_world.wbt` in Webots.
-2. Adjust parameters in `shared_constants.py` as desired.
+2. Create and adjust parameters in `configs.json` as desired.
+  1. Setting `"experimenting"` to `true` will run the default configuration. Otherwise, all configurations in `"configs"` will be ran sequentially.
+  2. Each configuration will be ran `"num_sims"` times, where the average coverage across simulations is records.
 3. Press **Play** in Webots. The supervisor will automatically spawn the configured number of drones.
-4. The simulation will pause automatically when `MAX_STEPS` is reached.
-5. Results are saved to `controllers/iaca_supervisor/iaca_run_output.npz`.
+4. The simulation will pause automatically when `max_steps` from `"shared"` is reached.
+5. Results are saved to `controllers/iaca_supervisor/out/iaca_run_output.npz` and `controllers/iaca_supervisor/out/final_coverages.json`.
 
 ---
 
@@ -113,14 +207,14 @@ most impactful settings:
 All scripts should be run from the `scripts/` directory, or with the output `.npz` file in the
 same directory.
 
-**Plot coverage over time, drone paths, and final pheromone/priority maps:**
+**Plot coverage over time, drone paths, and final pheromone/priority maps for config:**
 ```bash
-python plot_iaca_results.py
+python plot_iaca_results.py --config config_name
 ```
 
-**Animate pheromone and priority maps over time (saves as GIF if `save=True`):**
+**Animate pheromone and priority maps over time for config (saves as GIF if `save=True`):**
 ```bash
-python animate_pheromones.py
+python animate_pheromones.py --config config_name
 ```
 
 To save GIFs, set `save = True` inside `animate_pheromones.py` and update the output paths.
@@ -295,8 +389,6 @@ Beyond reproducing the paper, we added the following:
 
 - Automated simulation testing via Webots CLI
   - Managed to set this up to run on the software with UI.
-  - Slow due to graphics rendering.
-- Dynamic λ calculation that scales based on grid size.
 - Further hyperparameter optimization.
 - Potentially ROS 2 integration for parallel simulations or world batching.
 - Testing on larger and more complex environments.

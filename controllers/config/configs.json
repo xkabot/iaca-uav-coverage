@@ -11,7 +11,7 @@
         {
             "name": "paper_parameters",
             "shared": {
-				"max_steps": 5000
+				"max_steps": 100000
 			},
             "drone": {
                 "delta_v_max": 0.01,
@@ -29,7 +29,7 @@
         {
             "name": "our_parameters",
             "shared": {
-				"max_steps": 5000
+				"max_steps": 100000
 			},
             "drone": {
                 "delta_v_max": 0.09,
@@ -47,7 +47,7 @@
         {
             "name": "our_parameters_with_exp",
             "shared": {
-				"max_steps": 5000
+				"max_steps": 100000
 			},
             "drone": {
                 "delta_v_max": 0.09,
