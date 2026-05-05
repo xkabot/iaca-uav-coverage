@@ -25,7 +25,7 @@ WIND_MAX = 0.08
 
 FLYING_ATTITUDE = sc.HEIGHT_DESIRED
 
-D_MAX = math.sqrt(2.0)  # max diagonal distance between neighboring cells in grid units
+D_MAX = math.sqrt(sc.GRID_SIZE_X**2 + sc.GRID_SIZE_Y**2) / sc.GRID_SIZE_X
 
 WORLD_X_MIN = sc.WORLD_X_MIN
 WORLD_X_MAX = sc.WORLD_X_MAX
