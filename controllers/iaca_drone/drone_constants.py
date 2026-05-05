@@ -25,7 +25,7 @@ WIND_MAX = 0.08
 
 FLYING_ATTITUDE = sc.HEIGHT_DESIRED
 
-D_MAX = math.sqrt(sc.GRID_SIZE_X**2 + sc.GRID_SIZE_Y**2) / sc.GRID_SIZE_X
+D_MAX = math.sqrt(sc.cell_size_x**2 + sc.cell_size_y**2)
 
 WORLD_X_MIN = sc.WORLD_X_MIN
 WORLD_X_MAX = sc.WORLD_X_MAX
