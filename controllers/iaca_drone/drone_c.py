@@ -13,10 +13,13 @@ from shared_c import SharedConstants, valid_parameter
 class DroneConstants:
     """Contains constants used by the drone controller."""
 
+    name = "drone"
+
     boundary_strength = 0.9
     boundary_margin = 10.0
 
     delta_v_max = 0.09
+    d_max = None
     alpha_velocity = 0.9  # Movement smoothing factor
     max_world_speed = 1.5
 
@@ -26,9 +29,7 @@ class DroneConstants:
 
     exclusion_strength = 1.5
     exclusion_margin = 20
-
-    # Max diagonal distance between neighboring cells in grid units
-    d_max = math.sqrt(2.0)
+    
 
     def __init__(self, shared: SharedConstants, config: dict = {}):
         """Initializes the algorithm's drone constants from a dictionary
@@ -54,11 +55,17 @@ class DroneConstants:
 
         # Reassign any values provided by dictionary
         for key, value in config.items():
-            if value is not None:
-                if not valid_parameter(self, key, value, "drone"):
+            if value is not None and key != "d_max":
+                if not valid_parameter(self, key, value, self.name):
                     continue
                 
                 setattr(self, key, value)
+                
+        # Calculate max diagonal distance between neighboring cells in grid units if not provided
+        if getattr(self, "d_max") is None:
+            self.d_max = math.sqrt(shared.cell_size_x ** 2 + shared.cell_size_y ** 2)
+        else:
+            self.dmax = math.sqrt(2.0)
 
         # Reference the rng instance used by all instances in a simulation
         self.rng = shared.rng

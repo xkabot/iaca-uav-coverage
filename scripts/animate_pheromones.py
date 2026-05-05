@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 
@@ -132,7 +133,14 @@ def animate_priority(data, background_path, interval_ms=200, repeat=True, save_p
 
 
 def main():
-    data = load_data(os.path.join(supervisor_path, "out", "iaca_run_output.npz"))
+    # Define the configuration to animate
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="single_run")
+    args = parser.parse_args()
+    
+    config_dir = args.config
+    
+    data = load_data(os.path.join(supervisor_path, "out", config_dir, "iaca_run_output.npz"))
     background_path = os.path.join(pics_path, "background.png")
 
     print(f"Loaded {len(data['pheromone_snapshots'])} pheromone snapshots.")
@@ -141,8 +149,8 @@ def main():
     save = True
 
     if save:
-        pher_path = os.path.join(pics_path, "pheromone_out.gif")
-        prio_path = os.path.join(pics_path, "priority_out.gif")
+        pher_path = os.path.join(pics_path, f"{config_dir}_pheromone_out.gif")
+        prio_path = os.path.join(pics_path, f"{config_dir}_priority_out.gif")
     else:
         pher_path = None
         prio_path = None

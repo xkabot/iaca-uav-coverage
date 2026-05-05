@@ -15,9 +15,8 @@ class SharedConstants:
 
     # Shared time constants for algorithm
     tick_rate_ms = 32  # Each Webots simulation step is 32ms
-    tick_rate_sec = tick_rate_ms / 1000  # Seconds per simulation step
-    max_steps = 750
-
+    max_steps = 100000
+    
     # Shared grid constants
     # Min and max is in meters relative to center of grid
     world_x_min = -450.0
@@ -28,18 +27,38 @@ class SharedConstants:
     grid_rows = 500
     grid_cols = 500
 
-    cell_size_x = (world_x_max - world_x_min) / (grid_cols - 1)
-    cell_size_y = (world_y_max - world_y_min) / (grid_rows - 1)
-    avg_cell_size = 0.5 * (cell_size_x + cell_size_y)
-
     # Shared drone constants
     number_of_drones = 2
     sensor_radius_meters = 10
-    sensor_radius_cells = max(1, round(sensor_radius_meters / avg_cell_size))
     height_desired = 2.0
+    
+    # Set True if you want to use a custom search area (non-rectangular). 
+    # Drones will avoid any area included in the exclusion bitmap created in `supervisor_c`.
+    use_exclusion = False
+    
+    # Automatically calculated parameters (when setting the attribute they are derived from)
+    @property
+    def tick_rate_sec(self):
+        """Seconds per simulation step."""
+        return self.tick_rate_ms / 1000
+    
+    @property
+    def cell_size_x(self):
+        return (self.world_x_max - self.world_x_min) / (self.grid_cols - 1)
 
-    # Set true if you want to use a custom search area (non-rectangular). Drones will avoid any area included in the exclusion bitmap created in supervisor_constants.
-    use_exclusion = True
+    @property
+    def cell_size_y(self):
+        return (self.world_y_max - self.world_y_min) / (self.grid_rows - 1)
+
+    @property
+    def avg_cell_size(self):
+        return 0.5 * (self.cell_size_x + self.cell_size_y)
+    
+    @property
+    def sensor_radius_cells(self):
+        """Is 6 with current defaults"""
+        return max(1, round(self.sensor_radius_meters / self.avg_cell_size))
+    
 
     def __init__(self, config: dict = {}, rng=None):
         """Initializes the algorithm's shared constants from a dictionary
@@ -89,3 +108,5 @@ def valid_parameter(o: object, key: str, value, class_name: str) -> bool:
             """
         )
         return False
+    
+    return True

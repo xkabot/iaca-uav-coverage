@@ -12,14 +12,18 @@ from shared_c import SharedConstants, valid_parameter
 
 class SupervisorConstants:
     """Contains constants used by the supervisor controller."""
+    
+    name = "supervisor"
 
+    # Supervisor parameters
     p_max = 1_000_000.0  # Max pheromone value
     alpha_pheromone = 0.9975  # Exponential decay factor for pheromone
+    noise_fraction = 0.05  # Random noise for pheromone updates
     lam = 0.87  # Spatial decay factor for drone pheromone
     epsilon = 1e-30
+    priority_exponent = 1.0  # Paper says something about setting it to 4.0
 
-    startup_hover_time = 3.0
-
+    # Data interval parameters
     save_maps_interval = 100
     print_interval = 250
 
@@ -28,10 +32,10 @@ class SupervisorConstants:
 
     # Drone spawning parameters
     spawn_radius = 20.0
+    startup_hover_time = 3.0
 
     # Local exclusion zone parameters
     use_exclusion = False
-    exclusion_mask = None
     exclusion_margin_cells = 15
 
     def __init__(self, shared: SharedConstants, config: dict = {}):
@@ -61,6 +65,8 @@ class SupervisorConstants:
         self.use_exclusion = shared.use_exclusion
         if self.use_exclusion:
             self.exclusion_mask = make_exclusion_mask(vars(self))
+        else:
+            self.exclusion_mask = None
 
         # Shared drone constants
         self.sensor_radius_cells = shared.sensor_radius_cells
@@ -72,13 +78,10 @@ class SupervisorConstants:
         # Shared drone spawning parameters
         self.number_of_drones = shared.number_of_drones
 
-        # Shared exclusion zone parameters
-        self.use_exclusion = shared.use_exclusion
-
         # Reassign any values provided by dictionary
         for key, value in config.items():
             if value is not None:
-                if not valid_parameter(self, key, value, "supervisor"):
+                if not valid_parameter(self, key, value, self.name):
                     continue
 
                 setattr(self, key, value)

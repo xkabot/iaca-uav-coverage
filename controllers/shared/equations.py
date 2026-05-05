@@ -30,7 +30,7 @@ def get_p_new(i, j, lam, p_max, drone_positions):
     :return: the total drone pheromone contribution for a given (i, j) pheromone cell
     """
     total = 0
-    for (drone_i, drone_j) in drone_positions:
+    for drone_i, drone_j in drone_positions:
         total += delta_p_ij_k(i, j, drone_i, drone_j, lam)
 
     return p_max * total
@@ -49,15 +49,16 @@ def get_updated_pheromone_cell(p_cur, p_new, alpha):
     return alpha * p_cur + (1 - alpha) * p_new
 
 
-def get_raw_inverted_priority(P, epsilon):
+def get_raw_inverted_priority(P, epsilon, gamma):
     """
     Equation 4 in paper.
     Gets the raw reciprocal inversion of the pheromone matrix.
-    R_ij = 1 / (P_ij + epsilon); where R_ij is the raw priority value for cell (i, j), P_ij is the pheromone value for cell (i, j), and epsilon is a small constant to prevent division by zero.
+    R_ij = (1 / (P_ij + epsilon)) ^ gamma; where R_ij is the raw priority value for cell (i, j), P_ij is the pheromone value for cell (i, j), and epsilon is a small constant to prevent division by zero.
+    The paper also mentions raising the inverse of the pheromone intensity to gamma. 
     So this function can be applied elementwise to the entire pheromone matrix to get the raw priority matrix.
     :return: R, the raw priority value for full map (using numpy arrays)
     """
-    return 1 / (P + epsilon)
+    return 1 / (P + epsilon) ** gamma
 
 
 def normalize_priority(ranks, rows, cols):
@@ -103,7 +104,7 @@ def get_total_attracting_force(neighbors, drone_pos, v_old, D_max):
 
     v_old_norm = np.linalg.norm(v_old)
 
-    for (cell_center, Q_k) in neighbors:
+    for cell_center, Q_k in neighbors:
         r_k = np.array(cell_center) - np.array(drone_pos)
         r_norm = np.linalg.norm(r_k)
 
@@ -218,7 +219,9 @@ def desired_roll(v_ey, v_ey_dot, k_p_v=2.0, k_d_v=0.5):
     return -k_p_v * np.clip(v_ey, -1.0, 1.0) - k_d_v * v_ey_dot
 
 
-def altitude_thrust(e_z, integral_e_z, derivative_e_z, k_p_z=10.0, k_i_z=0.0, k_d_z=5.0, F_hover=48.0):
+def altitude_thrust(
+    e_z, integral_e_z, derivative_e_z, k_p_z=10.0, k_i_z=0.0, k_d_z=5.0, F_hover=48.0
+):
     """
     Equation 15 in the paper.
     Get the thrust command for altitude control.

@@ -1,5 +1,5 @@
 {
-    "experimenting": false,
+    "experimenting": true,
     "temp_dir": "tmp",
     "output_dir": "out",
     "rng_state_file": "rng_state.pk1",
@@ -9,22 +9,58 @@
     "num_sims": 1,
     "configs": [
         {
-            "name": "size350_lam080",
-            "shared": {},
-            "drone": {},
-            "supervisor": {"lam": 0.8}
+            "name": "paper_parameters",
+            "shared": {
+				"max_steps": 5000
+			},
+            "drone": {
+                "delta_v_max": 0.01,
+                "d_max": 2.0
+            },
+            "supervisor": {
+                "p_max": 220.0,
+                "alpha_pheromone": 0.7,
+                "lam": 0.9,
+                "supervisor_step_size": 15,
+                "noise_fraction": 0.05,
+                "priority_exponent": 4.0
+            }
         },
         {
-            "name": "size350_lam090",
-            "shared": {},
-            "drone": {},
-            "supervisor": {"lam": 0.9}
+            "name": "our_parameters",
+            "shared": {
+				"max_steps": 5000
+			},
+            "drone": {
+                "delta_v_max": 0.09,
+                "d_max": 2.0
+            },
+            "supervisor": {
+                "p_max": 1000000.0,
+                "alpha_pheromone": 0.9975,
+                "lam": 0.87,
+                "supervisor_step_size": 15,
+                "noise_fraction": 0.05,
+                "priority_exponent": 1.0
+            }
         },
         {
-            "name": "size30_lam070",
-            "shared": {},
-            "drone": {},
-            "supervisor": {"lam": 0.70}
+            "name": "our_parameters_with_exp",
+            "shared": {
+				"max_steps": 5000
+			},
+            "drone": {
+                "delta_v_max": 0.09,
+                "d_max": 2.0
+            },
+            "supervisor": {
+                "p_max": 1000000.0,
+                "alpha_pheromone": 0.9975,
+                "lam": 0.87,
+                "supervisor_step_size": 15,
+                "noise_fraction": 0.05,
+                "priority_exponent": 4.0
+            }
         }
     ]
 }

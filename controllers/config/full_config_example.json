@@ -1,0 +1,42 @@
+{
+    "name": "size450_lam087",
+    "shared": {
+        "tick_rate_ms": 32,
+        "max_steps": 100000,
+        "world_x_min": -450.0,
+        "world_x_max": 450.0,
+        "world_y_min": -450.0,
+        "world_y_max": 450.0,
+        "grid_rows": 500,
+        "grid_cols": 500,
+        "number_of_drones": 2,
+        "sensor_radius_meters": 10,
+        "height_desired": 2.0
+    },
+    "drone": {
+        "boundary_strength": 0.9,
+        "boundary_margin": 10.0,
+        "delta_v_max": 0.09,
+        "alpha_velocity": 0.9,
+        "max_world_speed": 1.5,
+        "wind_update_period": 20.0,
+        "wind_std": 0.03,
+        "wind_max": 0.08,
+        "exclusion_strength": 1.5,
+        "exclusion_margin": 20
+    },
+    "supervisor": {
+        "p_max": 1000000.0,
+        "alpha_pheromone": 0.9975,
+        "lam": 0.87,
+        "noise_fraction": 0.05,
+        "priority_exponent": 4.0,
+        "startup_hover_time": 3.0,
+        "save_maps_interval": 100,
+        "print_interval": 250,
+        "supervisor_step_size": 15,
+        "spawn_radius": 20.0,
+        "use_exclusion": false,
+        "exclusion_margin_cells": 15
+    }
+}

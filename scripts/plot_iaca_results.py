@@ -1,3 +1,4 @@
+import argparse
 import os, sys
 import numpy as np
 import matplotlib.image as mpimg
@@ -200,4 +201,11 @@ def plot_everything(npz_path, snapshot_index=-1):
 
 
 if __name__ == "__main__":
-    plot_everything(os.path.join(supervisor_path, "out", "iaca_run_output.npz"), snapshot_index=-1)
+    # Define the configuration to animate
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="single_run")
+    args = parser.parse_args()
+    
+    config_dir = args.config
+    
+    plot_everything(os.path.join(supervisor_path, "out", config_dir, "iaca_run_output.npz"), snapshot_index=-1)

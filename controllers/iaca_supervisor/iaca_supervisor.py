@@ -39,7 +39,7 @@ def init_configs(cfg: dict, rng, experimenting=False) -> SupervisorConstants:
         # If not experimenting, just initialize with default values.
         shared = SharedConstants(rng=rng)
         supervisor = SupervisorConstants(shared)
-        
+
     return supervisor
 
 
@@ -149,12 +149,12 @@ def update_pheromone_map(p_map, drone_grid_positions, p_max, alpha_pheromone, la
     return new_map
 
 
-def compute_priority_map(p_map, drone_grid_positions, epsilon, exclusion_mask=None):
+def compute_priority_map(p_map, drone_grid_positions, epsilon, gamma, exclusion_mask=None):
     rows, cols = p_map.shape
     total_cells = rows * cols
 
     # Eq 4: raw inversion
-    raw = eq.get_raw_inverted_priority(p_map, epsilon)
+    raw = eq.get_raw_inverted_priority(p_map, epsilon, gamma)
 
     # Eq 5: rank-based normalization
     flat = raw.flatten()
@@ -214,7 +214,7 @@ def mark_observed_cells(observed_mask, center_row, center_col, radius):
 
 
 def get_coverage_percent(observed_mask, exclusion_mask=None):
-    if exclusion_mask is not None:
+    if exclusion_mask is None:
         return 100.0 * np.count_nonzero(observed_mask) / observed_mask.size
 
     valid_mask = ~exclusion_mask
@@ -359,28 +359,40 @@ temp_dir = master_config["temp_dir"]
 
 # Output file paths/names
 final_results_file = os.path.join(current_dir, output_dir, master_config["final_coverage"])
-# Defines the output for the first simulation results
-iaca_run_path = os.path.join(current_dir, output_dir, master_config["iaca_run"])
+# Defines the output RNG state serialization
 rng_state_file = os.path.join(shared_path, temp_dir, master_config["rng_state_file"])
+# Compressed results filename
+iaca_filename = master_config.get("iaca_run", "iaca_run_output")
 
 # Store coverage data
 coverages = {}
 
 
 # Test each configuration to simulate, execute a standard run if experimenting is False
-for config_index in range(num_configs):
+for config_index in range(num_configs):    
     if experimenting:
         cfg = init_configs(master_config["configs"][config_index], rng, experimenting)
         cfg_name = master_config["configs"][config_index].get("name", f"config{config_index}")
     else:
         cfg = init_configs({}, rng)
         cfg_name = "single_run"
+    
+    # Path to compressed configuration results
+    iaca_run_path = os.path.join(current_dir, output_dir, cfg_name)
+    print(iaca_run_path)
+    
+    # Create compressed configuration resultl output dir if not existing
+    if not os.path.exists(iaca_run_path):
+        os.makedirs(iaca_run_path)    
         
     print(f"Now testing {cfg_name}...")
         
     # Store the total coverage across all simulations
     coverage_sum = 0
-    for sim in range(num_sims):    
+    for sim in range(num_sims):
+        sim_start_time = robot.getTime() 
+        print(f"Running simulation {sim} | Start Time: {sim_start_time}")
+        
         # Save the state of the rng generator, ensures stochastic results between sims
         with open(rng_state_file, "wb") as f:
             pickle.dump(rng, f)
@@ -420,6 +432,7 @@ for config_index in range(num_configs):
         print("IACA supervisor started")
         while robot.step(timestep) != -1:
             current_time = robot.getTime()
+            elapsed = current_time - sim_start_time
             step_count += 1
 
             is_supervisor_step = (step_count % cfg.supervisor_step_size == 0)
@@ -467,13 +480,14 @@ for config_index in range(num_configs):
                     p_max=cfg.p_max,
                     alpha_pheromone=cfg.alpha_pheromone,
                     lam=cfg.lam,
-                    noise_fraction=0.05,
+                    noise_fraction=cfg.noise_fraction,
                     exclusion_mask=cfg.exclusion_mask
                 )
                 priority_map = compute_priority_map(
                     p_map=pheromone_map,
                     drone_grid_positions=drone_grid_positions,
                     epsilon=cfg.epsilon,
+                    gamma=cfg.priority_exponent,
                     exclusion_mask=cfg.exclusion_mask
                 )
 
@@ -481,7 +495,7 @@ for config_index in range(num_configs):
                 pheromone_snapshots.append(pheromone_map.copy().astype(np.float32))
                 priority_snapshots.append(priority_map.copy().astype(np.float32))
                 snapshot_steps.append(step_count)
-                snapshot_times.append(current_time)
+                snapshot_times.append(elapsed)
 
             # Command sending also independent
             if is_supervisor_step or is_final_step:
@@ -490,7 +504,7 @@ for config_index in range(num_configs):
                     row = state["grid_row"]
                     col = state["grid_col"]
 
-                    if current_time < cfg.startup_hover_time:
+                    if elapsed < cfg.startup_hover_time:
                         # During startup just send hover with empty neighbors
                         command = {
                             "neighbors": {},
@@ -548,14 +562,14 @@ for config_index in range(num_configs):
                 coverage_history.append(coverage)
 
                 if step_count % cfg.print_interval == 0:
-                    #print(f"{current_time}: Step {step_count} coverage={coverage:.2f}%")
-                    pass
+                    print(f"{elapsed:.0f}: Step {step_count} coverage={coverage:.2f}%")
                     
             if is_final_step:
                 # Only save key results of the first simulation
                 if sim == 0:
-                    tmp_path = iaca_run_path + ".tmp.npz"
-                    out_path = iaca_run_path + ".npz"
+                    out_file = os.path.join(iaca_run_path, f"{iaca_filename}")
+                    tmp_path = out_file + ".tmp.npz"
+                    out_path = out_file + ".npz"
 
                     save_data = {
                         "world_x_min": cfg.world_x_min,
@@ -598,7 +612,8 @@ for config_index in range(num_configs):
                 if node:
                     node.remove()
 
-            robot.simulationReset()
+            robot.simulationResetPhysics()
+            robot.step(timestep)
             
             if robot.step(timestep) == -1:
                 print("Webots closed. Exiting.")

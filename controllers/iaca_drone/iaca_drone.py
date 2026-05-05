@@ -27,7 +27,7 @@ def load_config() -> dict:
         return json.load(file)
 
 
-def init_configs(cfg: dict, rng, experimenting=False) -> DroneConstants:
+def init_config(cfg: dict, rng, experimenting=False) -> DroneConstants:
     """Initializes a `DroneConstants` instance, which contains the values provided
     by `cfg`. Any values not present in `cfg` will contain their default values defined
     in `DroneConstants` and `SharedConstants`."""
@@ -100,7 +100,7 @@ def exclusion_repulsion_force(drone_pos, neighbors, margin_world, strength):
     f = np.zeros(2, dtype=float)
     drone_pos = np.array(drone_pos)
 
-    for key, val in neighbors.items():
+    for _, val in neighbors.items():
         if not val.get("excluded", False):
             continue
 
@@ -141,7 +141,7 @@ with open(rng_file, "rb") as f:
 
 # Initialize the drone constants
 current_config = master_config["configs"][config_num]
-cfg = init_configs(current_config, rng, experimenting)
+cfg = init_config(current_config, rng, experimenting)
 
 
 last_wind_update_time = 0
